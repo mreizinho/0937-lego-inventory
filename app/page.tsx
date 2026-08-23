@@ -41,7 +41,9 @@ export default function Home() {
   return (
     <main className="app-shell">
       <header className="masthead">
-        <div className="brand"><BrickMark /><div><strong>Comunidade</strong><span>0937</span></div></div>
+        <a className="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
+          <img src="/comunidade-0937-logo.png" alt="Comunidade 0937" />
+        </a>
         <nav aria-label="Navegação principal"><a className="active" href="#inventario">Inventário</a><a href="#movimentos">Movimentos</a><a href="#catalogo">Catálogo</a></nav>
         <button className="user-chip" aria-label="Menu do utilizador"><span>MR</span><b>Mário</b></button>
       </header>
