@@ -28,7 +28,7 @@
   .user-chip{align-self:center;height:auto;padding-bottom:0}
 }
 
-.intro{padding-top:16px;padding-bottom:24px;display:block}
+.intro{padding-top:6px;padding-bottom:24px;display:block}
 .intro .tagline{margin:0;color:var(--ink);font-size:22px;font-weight:650;letter-spacing:-.3px}
 .app-shell{padding-bottom:88px}
 .app-shell{background:#fff}
