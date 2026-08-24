@@ -91,7 +91,7 @@ function optionsMarkup() {
   return `<section class="intro" id="inventario"><p class="tagline">O que queres fazer hoje?</p></section>
     <section class="workspace"><section class="options-panel"><h2 class="options-title">Opções</h2>${login}<div class="options-grid">
       ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
-      ${optionCard("saida", "Saida", "Registar set enviado", "saida")}
+      ${optionCard("saida", "Saída", "Registar set enviado", "saida")}
       ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "lote")}
       ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "consultar")}
     </div></section></section>`;
@@ -99,7 +99,7 @@ function optionsMarkup() {
 
 function keypadMarkup() {
   const numbers = [1,2,3,4,5,6,7,8,9].map(number => `<button data-digit="${number}">${number}</button>`).join("");
-  return `<section class="workspace"><section class="scan-panel"><div class="entry-keypad">
+  return `<section class="workspace"><section class="scan-panel"><div class="entry-keypad ${state.mode}">
     <label for="entry-code">Digite o N.º do Set ou Código de Barras</label>
     <input id="entry-code" class="keypad-display" value="${escapeHtml(state.query)}" readonly inputmode="none" tabindex="-1" aria-label="Código introduzido através do teclado no ecrã">
     <div class="number-grid">${numbers}<button class="delete-key" data-action="delete" aria-label="Apagar último dígito">C</button><button data-digit="0">0</button><button class="ok-key" data-action="lookup">OK</button></div>
