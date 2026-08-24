@@ -15,28 +15,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Obter código
         uses: actions/checkout@v4
-
-      - name: Preparar Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Instalar dependências
-        run: npm ci
-
-      - name: Construir site estático
-        run: npm run build
-
-      - name: Ajustar caminhos para GitHub Pages
-        run: |
-          mv dist/client/0937-lego-inventory/_next dist/client/_next
-          rmdir dist/client/0937-lego-inventory
 
       - name: Preparar GitHub Pages
         uses: actions/configure-pages@v5
@@ -44,15 +30,8 @@ jobs:
       - name: Carregar site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/client
+          path: .
 
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
       - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v4
