@@ -178,6 +178,21 @@ function findSet(code) {
   return { code: number, ean: String(row[eanColumn] ?? value("EAN")), name: value("SetName") || `Conjunto ${number}`, theme: value("Theme") || "LEGO", year: Number(value("Year") || value("YearFrom")) || 0, pieces: Number(value("Pieces")) || 0, stock: 0, location: "—", color: "#e5edf3", imageUrl: imageFile ? `https://images.brickset.com/sets/images/${imageFile}` : "" };
 }
 
+function isValidEan(value) {
+  if (!/^\d{8}$|^\d{13}$/.test(value)) return false;
+  const digits = [...value].map(Number);
+  const expectedCheckDigit = digits.pop();
+  const sum = digits.reverse().reduce((total, digit, index) => total + digit * (index % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === expectedCheckDigit;
+}
+
+function findSetByEan(ean) {
+  if (!state.catalogRows.length) return fallbackSets.find(item => item.ean === ean);
+  const eanColumn = 24;
+  const hasExactEan = state.catalogRows.slice(2).some(row => String(row[eanColumn] ?? "").trim() === ean);
+  return hasExactEan ? findSet(ean) : undefined;
+}
+
 async function loadCatalog(token) {
   const range = encodeURIComponent("BricksetSets!A1:ZZ");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -282,7 +297,7 @@ async function openBarcodeScanner() {
 
   const session = ++barcodeSession;
   try {
-    const desiredFormats = ["ean_13", "ean_8", "upc_a", "upc_e"];
+    const desiredFormats = ["ean_13", "ean_8"];
     const supportedFormats = typeof window.BarcodeDetector.getSupportedFormats === "function"
       ? await window.BarcodeDetector.getSupportedFormats()
       : desiredFormats;
@@ -308,21 +323,31 @@ async function openBarcodeScanner() {
     video.srcObject = stream;
     await video.play();
     updateScannerStatus("Aponte a câmara para o código EAN.");
+    let lastUnknownEan = "";
 
     const scanFrame = async () => {
       if (!state.scannerOpen || session !== barcodeSession) return;
       try {
         if (video.readyState >= 2) {
           const codes = await detector.detect(video);
-          const ean = codes.map(code => String(code.rawValue || "").replace(/\D/g, "")).find(value => value.length >= 8);
+          const ean = codes.map(code => String(code.rawValue || "").replace(/\D/g, "")).find(isValidEan);
           if (ean) {
-            state.query = ean;
-            stopBarcodeCamera();
-            state.scannerOpen = false;
-            state.scannerStatus = "";
-            document.querySelector(".camera-scanner")?.remove();
-            lookup();
-            return;
+            const found = findSetByEan(ean);
+            if (found) {
+              state.query = ean;
+              state.selected = found;
+              state.photoMetaVisible = true;
+              state.status = `Conjunto ${found.code} encontrado no catálogo`;
+              stopBarcodeCamera();
+              state.scannerOpen = false;
+              state.scannerStatus = "";
+              render();
+              return;
+            }
+            if (lastUnknownEan !== ean) {
+              lastUnknownEan = ean;
+              updateScannerStatus(`EAN ${ean} não encontrado no catálogo. Continue a apontar para outro código.`);
+            }
           }
         }
       } catch {
