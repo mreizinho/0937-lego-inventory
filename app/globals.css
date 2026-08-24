@@ -79,6 +79,7 @@
 .entry-title-menu{position:absolute;right:0;top:0;height:42px;display:flex;align-items:center;z-index:35}
 .entry-title-menu .hamburger-button{height:42px;color:#fff}
 .entry-title-menu .menu-popover{top:42px;right:0;text-align:left}
+.entry-keypad-title h2{transform:translateY(5px)}
 @media(max-width:850px){
   .mode-button{min-height:76px}
   .mode-option-image{width:46px;height:46px}
