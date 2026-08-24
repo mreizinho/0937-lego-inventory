@@ -33,6 +33,11 @@ jobs:
       - name: Construir site estático
         run: npm run build
 
+      - name: Ajustar caminhos para GitHub Pages
+        run: |
+          mv dist/client/0937-lego-inventory/_next dist/client/_next
+          rmdir dist/client/0937-lego-inventory
+
       - name: Preparar GitHub Pages
         uses: actions/configure-pages@v5
 

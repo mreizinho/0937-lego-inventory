@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+const sitePrefix = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -16,8 +18,8 @@ export const metadata: Metadata = {
   title: "Inventário LEGO · Comunidade 0937",
   description: "Gestão de entradas, saídas e catálogo de conjuntos LEGO da Comunidade 0937.",
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: `${sitePrefix}/favicon.svg`,
+    shortcut: `${sitePrefix}/favicon.svg`,
   },
 };
 
