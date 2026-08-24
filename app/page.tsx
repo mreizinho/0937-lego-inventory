@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { IconBrandGoogle, IconChevronRight, IconClipboardList, IconDownload, IconEye, IconFilter, IconLock, IconLogout, IconMenu2, IconPackageExport, IconPackageImport, IconRefresh, IconScan, IconSearch, IconTable, IconX } from "@tabler/icons-react";
 
-type Mode = "entrada" | "saida" | "consulta";
+type Mode = "entrada" | "saida" | "consulta" | "lote";
 type LegoSet = { code: string; ean: string; name: string; theme: string; year: number; pieces: number; stock: number; location: string; color: string };
 
 const sets: LegoSet[] = [
@@ -12,18 +13,22 @@ const sets: LegoSet[] = [
   { code: "75257", ean: "5702016370799", name: "Millennium Falcon", theme: "LEGO Star Wars", year: 2019, pieces: 1353, stock: 3, location: "Estante A · 02", color: "#d4d4d1" },
 ];
 
-const movements = [
-  { type: "Entrada", code: "75257", name: "Millennium Falcon", time: "Hoje, 14:32", qty: "+1" },
-  { type: "Saída", code: "10300", name: "Back to the Future", time: "Hoje, 11:15", qty: "−1" },
-  { type: "Entrada", code: "21325", name: "Medieval Blacksmith", time: "Ontem, 16:48", qty: "+2" },
-];
-
 function BrickMark() { return <span className="brick-mark" aria-hidden="true"><i /><i /><i /><i /></span>; }
+function ScannerGlyph() { return <svg className="scanner-glyph" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M9 3H5a2 2 0 0 0-2 2v4M19 3h4a2 2 0 0 1 2 2v4M9 25H5a2 2 0 0 1-2-2v-4M19 25h4a2 2 0 0 0 2-2v-4M7 9v10M10 9v10M14 9v10M17 9v10M21 9v10" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>; }
+function ModeGlyph({ mode, size = 22 }: { mode: Mode; size?: number }) {
+  const props = { size, stroke: 2.2, "aria-hidden": true as const };
+  if (mode === "entrada") return <IconPackageImport {...props} />;
+  if (mode === "saida") return <IconPackageExport {...props} />;
+  if (mode === "consulta") return <IconEye {...props} />;
+  return <IconScan {...props} />;
+}
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>("entrada");
+  const [mode, setMode] = useState<Mode | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<LegoSet | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
   const [status, setStatus] = useState("Catálogo sincronizado há 2 min");
   const inputRef = useRef<HTMLInputElement>(null);
   const found = useMemo(() => sets.find(s => s.code === query.trim() || s.ean === query.trim()), [query]);
@@ -35,43 +40,79 @@ export default function Home() {
   }
   function register() {
     if (!selected) return;
-    setStatus(`${mode === "entrada" ? "Entrada" : mode === "saida" ? "Saída" : "Consulta"} preparada para ${selected.code}. Ligação ao Google Sheets por configurar.`);
+    setStatus(`${mode === "entrada" ? "Entrada" : mode === "saida" ? "Saída" : mode === "lote" ? "Item adicionado ao lote" : "Consulta"} preparada para ${selected.code}. Ligação ao Google Sheets por configurar.`);
   }
 
   return (
     <main className="app-shell">
       <header className="masthead">
         <a className="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
-          <img src="/comunidade-0937-logo.png" alt="Comunidade 0937" />
+          <picture>
+            <source media="(max-width: 850px)" srcSet="/comunidade-0937-bricks.svg" />
+            <img src="/comunidade-0937.svg" alt="Comunidade 0937" />
+          </picture>
         </a>
-        <nav aria-label="Navegação principal"><a className="active" href="#inventario">Inventário</a><a href="#movimentos">Movimentos</a><a href="#catalogo">Catálogo</a></nav>
-        <button className="user-chip" aria-label="Menu do utilizador"><span>MR</span><b>Mário</b></button>
+        <div className="header-menu">
+          <button className="header-search-button" aria-label="Pesquisar">
+            <IconSearch aria-hidden="true" />
+          </button>
+          <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="main-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
+            {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 aria-hidden="true" />}
+          </button>
+          {menuOpen && <div className="menu-popover" id="main-menu">
+            {!loggedIn ? <button className="google-login" onClick={() => { setLoggedIn(true); setMenuOpen(false); }}><span><IconBrandGoogle /></span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>
+            : <button className="google-login signed-in" onClick={() => { setLoggedIn(false); setMode(null); setMenuOpen(false); setStatus("Sessão terminada"); }}><span><IconLogout /></span><span><strong>Terminar sessão</strong><small>Sessão Google de teste</small></span></button>}
+            <p className="menu-group-title">BASE DE DADOS</p>
+            <button className="menu-action"><span className="menu-action-icon yellow"><IconDownload /></span><span><strong>Transferir Base de Dados</strong><small>Download offline da BD</small></span><IconChevronRight className="menu-chevron" /></button>
+            <button className="menu-action"><span className="menu-action-icon green"><IconTable /></span><span><strong>Abrir Google Sheets</strong><small>Ver tabela completa</small></span><IconChevronRight className="menu-chevron" /></button>
+            <button className="menu-action"><span className="menu-action-icon blue"><IconRefresh /></span><span><strong>Atualizar Catálogos</strong><small>Sync via API Brickset</small></span><IconChevronRight className="menu-chevron" /></button>
+            <p className="menu-group-title extras">EXTRAS</p>
+            <button className="menu-action"><span className="menu-action-icon orange"><IconClipboardList /></span><span><strong>Modo Inventário</strong><small>Iniciar novo inventário</small></span><IconChevronRight className="menu-chevron" /></button>
+            <button className="menu-action"><span className="menu-action-icon blue"><IconFilter /></span><span><strong>Consultas Avançadas</strong><small>Filtros por tema, período...</small></span><IconChevronRight className="menu-chevron" /></button>
+          </div>}
+        </div>
       </header>
-      <section className="intro" id="inventario">
-        <div><p className="eyebrow">INVENTÁRIO LEGO · COMUNIDADE 0937</p><h1>Olá, Mário.</h1><p>O que queres movimentar hoje?</p></div>
-        <div className="sync"><span />{status}</div>
-      </section>
+      {mode !== "entrada" && mode !== "saida" && <section className="intro" id="inventario">
+        <p className="tagline">O que queres fazer hoje?</p>
+      </section>}
       <section className="workspace">
-        <aside className="mode-panel">
-          <p className="panel-label">TIPO DE MOVIMENTO</p>
-          {(["entrada", "saida", "consulta"] as Mode[]).map(item => <button key={item} onClick={() => chooseMode(item)} className={`mode-button ${mode === item ? "selected" : ""}`}><span className={`mode-icon ${item}`}>{item === "entrada" ? "↘" : item === "saida" ? "↗" : "⌕"}</span><span><strong>{item === "entrada" ? "Dar entrada" : item === "saida" ? "Dar saída" : "Consultar conjunto"}</strong><small>{item === "entrada" ? "Adicionar ao inventário" : item === "saida" ? "Retirar do inventário" : "Ver ficha e disponibilidade"}</small></span><b>›</b></button>)}
-          <div className="sheet-card"><div className="sheet-icon">▦</div><div><small>FONTE DE DADOS</small><strong>Google Sheets</strong><span>Catálogo + Movimentos</span></div><i>Ligação<br/>pendente</i></div>
-        </aside>
-        <section className="scan-panel">
-          <div className="scan-heading"><span className={`big-icon ${mode}`}>{mode === "entrada" ? "↘" : mode === "saida" ? "↗" : "⌕"}</span><div><p>PASSO 1 DE 2</p><h2>{mode === "entrada" ? "Identificar conjunto para entrada" : mode === "saida" ? "Identificar conjunto para saída" : "Consultar conjunto"}</h2></div></div>
-          <label className="code-label" htmlFor="lego-code">Código do conjunto ou EAN</label>
-          <div className="code-row"><div className="code-input"><span>▥</span><input ref={inputRef} id="lego-code" value={query} onChange={e => { setQuery(e.target.value.replace(/\D/g, "")); setSelected(null); }} onKeyDown={e => e.key === "Enter" && lookup()} placeholder="Ex.: 10300 ou 5702017153186" inputMode="numeric" autoComplete="off" /><kbd>ENTER</kbd></div><button className="search-button" onClick={lookup}>Pesquisar</button></div>
-          <div className="divider"><span>ou</span></div>
-          <button className="scanner-button" onClick={() => { setQuery("5702016370799"); setTimeout(() => inputRef.current?.focus(), 30); }}><span className="scan-corners">▦</span><strong>Ler com scanner</strong><small>O leitor envia o EAN automaticamente</small></button>
-          <p className="scanner-tip"><b>i</b> Leitores USB/Bluetooth funcionam como teclado: basta apontar e ler.</p>
-          {selected && <article className="set-result"><div className="set-art" style={{ background: selected.color }}><BrickMark /><span>#{selected.code}</span></div><div className="set-copy"><p>{selected.theme} · {selected.year}</p><h3>{selected.name}</h3><div className="set-meta"><span><small>PEÇAS</small><b>{selected.pieces.toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>{selected.stock} un.</b></span><span><small>LOCAL</small><b>{selected.location}</b></span></div></div><button className={`confirm-button ${mode}`} onClick={register}>{mode === "entrada" ? "Continuar entrada" : mode === "saida" ? "Continuar saída" : "Abrir ficha"} <span>→</span></button></article>}
-        </section>
+        {!mode ? <section className="options-panel">
+          <h2 className="options-title">Opções</h2>
+          {!loggedIn && <div className="login-required"><IconLock aria-hidden="true" /><span><strong>Inicia sessão para continuar</strong><small>As opções ficam disponíveis após o login com Google.</small></span></div>}
+          <div className="options-grid">
+            {(["entrada", "saida", "consulta", "lote"] as Mode[]).map(item => <button key={item} disabled={!loggedIn} onClick={() => chooseMode(item)} className={`option-card ${item}`}><span className="mode-option-image"><img src={`/options/${item === "consulta" ? "lote" : item === "lote" ? "consultar" : item}.png`} alt="" /></span><span><strong>{item === "entrada" ? "Entrada" : item === "saida" ? "Saida" : item === "consulta" ? "Consultar" : "Modo Lote"}</strong><small>{item === "entrada" ? "Registar set recebido" : item === "saida" ? "Registar set enviado" : item === "consulta" ? "Ver detalhes e stock" : "Scan múltiplo rápido"}</small></span><b>›</b></button>)}
+          </div>
+        </section> : <section className="scan-panel">
+          {mode === "entrada" || mode === "saida" ? <div className="entry-keypad">
+            <div className="entry-keypad-title"><h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2></div>
+            <label htmlFor="entry-code">Digite o N.º do Set ou Código de Barras</label>
+            <input ref={inputRef} id="entry-code" className="keypad-display" value={query} onChange={e => { setQuery(e.target.value.replace(/\D/g, "")); setSelected(null); }} onKeyDown={e => e.key === "Enter" && lookup()} inputMode="numeric" autoComplete="off" />
+            <div className="number-grid">
+              {[1,2,3,4,5,6,7,8,9].map(number => <button key={number} onClick={() => { setQuery(value => value + number); setSelected(null); }}>{number}</button>)}
+              <button className="delete-key" aria-label="Apagar último dígito" onClick={() => { setQuery(value => value.slice(0,-1)); setSelected(null); }}>C</button>
+              <button onClick={() => { setQuery(value => value + "0"); setSelected(null); }}>0</button>
+              <button className="ok-key" onClick={lookup}>OK</button>
+            </div>
+            <div className="keypad-actions">
+              <button className="clear-key" onClick={() => { setQuery(""); setSelected(null); inputRef.current?.focus(); }}>LIMPAR</button>
+              <button className="scanner-key" onClick={() => { setQuery("5702016370799"); setSelected(null); }}><ScannerGlyph /> SCANNER</button>
+            </div>
+          </div> : <>
+            <div className="scan-heading"><span className={`big-icon ${mode}`}><ModeGlyph mode={mode} size={27} /></span><div><h2>{mode === "saida" ? "Identificar conjunto para saída" : mode === "lote" ? "Adicionar conjuntos ao lote" : "Consultar conjunto"}</h2></div></div>
+            <label className="code-label" htmlFor="lego-code">Código do conjunto ou EAN</label>
+            <div className="code-row"><div className="code-input"><span>▥</span><input ref={inputRef} id="lego-code" value={query} onChange={e => { setQuery(e.target.value.replace(/\D/g, "")); setSelected(null); }} onKeyDown={e => e.key === "Enter" && lookup()} placeholder="Ex.: 10300 ou 5702017153186" inputMode="numeric" autoComplete="off" /><kbd>ENTER</kbd></div><button className="search-button" onClick={lookup}>Pesquisar</button></div>
+            <div className="divider"><span>ou</span></div>
+            <button className="scanner-button" onClick={() => { setQuery("5702016370799"); setTimeout(() => inputRef.current?.focus(), 30); }}><span className="scan-corners">▦</span><strong>Ler com scanner</strong><small>O leitor envia o EAN automaticamente</small></button>
+            <p className="scanner-tip"><b>i</b> Leitores USB/Bluetooth funcionam como teclado: basta apontar e ler.</p>
+          </>}
+          {selected && <article className="set-result"><div className="set-art" style={{ background: selected.color }}><BrickMark /><span>#{selected.code}</span></div><div className="set-copy"><p>{selected.theme} · {selected.year}</p><h3>{selected.name}</h3><div className="set-meta"><span><small>PEÇAS</small><b>{selected.pieces.toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>{selected.stock} un.</b></span><span><small>LOCAL</small><b>{selected.location}</b></span></div></div><button className={`confirm-button ${mode}`} onClick={register}>{mode === "entrada" ? "Continuar entrada" : mode === "saida" ? "Continuar saída" : mode === "lote" ? "Adicionar ao lote" : "Abrir ficha"} <span>→</span></button></article>}
+        </section>}
       </section>
-      <section className="lower-grid" id="movimentos">
-        <article className="activity-card"><div className="card-title"><div><p>ATIVIDADE RECENTE</p><h2>Últimos movimentos</h2></div><button>Ver todos →</button></div>{movements.map(m => <div className="movement" key={m.code + m.time}><span className={m.type === "Entrada" ? "in" : "out"}>{m.type === "Entrada" ? "↘" : "↗"}</span><div><strong>{m.code} · {m.name}</strong><small>{m.type} · {m.time}</small></div><b className={m.type === "Entrada" ? "positive" : "negative"}>{m.qty}</b></div>)}</article>
-        <article className="stats-card"><p>RESUMO DO INVENTÁRIO</p><div className="stats"><span><small>CONJUNTOS</small><b>247</b></span><span><small>UNIDADES</small><b>318</b></span><span><small>TEMAS</small><b>18</b></span></div><div className="stock-bar"><i /><span>92% catalogado</span></div><small className="updated">Última atualização: hoje, 14:32</small></article>
-      </section>
-      <footer><BrickMark /><span>Ferramenta de inventário da Comunidade 0937</span><b>Protótipo funcional · Dados de demonstração</b></footer>
+      <footer className="status-bar">
+        {mode && <button className="status-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }}><span aria-hidden="true">←</span> VOLTAR</button>}
+        {mode !== "entrada" && mode !== "saida" && <span className="status-message"><span className="status-dot" /> <span>{status}</span></span>}
+        <b>Inventário LEGO · Comunidade 0937</b>
+      </footer>
     </main>
   );
 }
