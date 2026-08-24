@@ -90,8 +90,7 @@ function optionsMarkup() {
   const loginTitle = state.loginError || (state.checkingCredentials ? "A verificar credenciais..." : "Inicia sessão para continuar");
   const loginHelp = state.loginError ? "Toca aqui para tentar novamente." : state.checkingCredentials ? "A confirmar o acesso ao Google Sheets." : "As opções ficam disponíveis após o login com Google.";
   const login = state.loggedIn ? "" : `<button type="button" class="login-required ${state.loginError ? "has-error" : ""}" data-action="login">${icons.lock}<span><strong>${escapeHtml(loginTitle)}</strong><small>${loginHelp}</small></span></button>`;
-  return `<section class="intro" id="inventario"><p class="tagline">O que queres fazer hoje?</p></section>
-    <section class="workspace"><section class="options-panel"><h2 class="options-title">Opções</h2>${login}<div class="options-grid">
+  return `<section class="workspace" id="inventario"><section class="options-panel"><p class="options-prompt">O que queres fazer hoje?</p>${login}<div class="options-grid">
       ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
       ${optionCard("saida", "Saída", "Registar set enviado", "saida")}
       ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "lote")}
@@ -113,7 +112,7 @@ function foundMarkup() {
   const item = state.selected;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
-    <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}${state.photoMetaVisible ? `<span class="set-photo-meta"><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span>` : ""}</button>
+    <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
     <div class="movement-fields">
       <label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>
       <label><span>Estado</span><input type="text" name="status" data-movement-field="status" value="${escapeHtml(state.movementForm.status)}" autocomplete="off"></label>
@@ -247,13 +246,25 @@ document.addEventListener("click", event => {
   }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
+  if (action === "toggle-photo-meta") {
+    state.photoMetaVisible = !state.photoMetaVisible;
+    const photo = event.target.closest(".set-found-photo");
+    const meta = photo?.querySelector(".set-photo-meta");
+    if (meta) meta.hidden = !state.photoMetaVisible;
+    photo?.setAttribute("aria-pressed", String(!state.photoMetaVisible));
+    return;
+  }
+  if (action === "qty-increase" || action === "qty-decrease") {
+    const currentQty = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
+    state.movementForm.qty = String(action === "qty-increase" ? currentQty + 1 : Math.max(1, currentQty - 1));
+    const qtyInput = document.querySelector("#movement-qty");
+    if (qtyInput) qtyInput.value = state.movementForm.qty;
+    return;
+  }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
   if (action === "back") Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: { origin: "", status: "", storage: "", qty: "1" } });
   if (action === "delete") { state.query = state.query.slice(0, -1); state.selected = null; }
   if (action === "clear") Object.assign(state, { query: "", selected: null });
-  if (action === "qty-increase") state.movementForm.qty = String(Math.max(1, (Number.parseInt(state.movementForm.qty, 10) || 1) + 1));
-  if (action === "qty-decrease") state.movementForm.qty = String(Math.max(1, (Number.parseInt(state.movementForm.qty, 10) || 1) - 1));
-  if (action === "toggle-photo-meta") state.photoMetaVisible = !state.photoMetaVisible;
   if (action === "movement-cancel") {
     Object.assign(state, { query: "", selected: null, movementForm: { origin: "", status: "", storage: "", qty: "1" }, photoMetaVisible: true });
     render();
