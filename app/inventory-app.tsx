@@ -61,11 +61,12 @@ export default function Home() {
         };
         const number = value("Number") || String(row[1] ?? code);
         const imageFilename = value("ImageFilename");
+        const imageFile = imageFilename && /\.[a-z0-9]+$/i.test(imageFilename) ? imageFilename : imageFilename ? `${imageFilename}.jpg` : "";
         return {
           code: number, ean: value("EAN"), name: value("SetName") || `Conjunto ${number}`,
-          theme: value("Theme") || "LEGO", year: Number(value("Year")) || 0,
+          theme: value("Theme") || "LEGO", year: Number(value("Year") || value("YearFrom")) || 0,
           pieces: Number(value("Pieces")) || 0, stock: 0, location: "—", color: "#e5edf3",
-          imageUrl: imageFilename ? `https://images.brickset.com/sets/images/${imageFilename}` : undefined,
+          imageUrl: imageFile ? `https://images.brickset.com/sets/images/${imageFile}` : undefined,
         } satisfies LegoSet;
       }
       return undefined;
