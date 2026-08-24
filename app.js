@@ -25,6 +25,9 @@ let barcodeStream = null;
 let barcodeScanTimer = null;
 let barcodeSession = 0;
 let barcodeFocusTimer = null;
+let quaggaScanPending = false;
+let lastQuaggaScanAt = 0;
+let barcodeFrameCanvas = null;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -270,10 +273,48 @@ function stopBarcodeCamera() {
   if (barcodeFocusTimer) window.clearTimeout(barcodeFocusTimer);
   barcodeScanTimer = null;
   barcodeFocusTimer = null;
+  quaggaScanPending = false;
+  lastQuaggaScanAt = 0;
   if (barcodeStream) barcodeStream.getTracks().forEach(track => track.stop());
   barcodeStream = null;
   const video = document.querySelector("#barcode-camera");
   if (video) video.srcObject = null;
+}
+
+function decodeEanWithQuagga(video) {
+  if (!window.Quagga || quaggaScanPending || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
+    return Promise.resolve("");
+  }
+
+  quaggaScanPending = true;
+  barcodeFrameCanvas ||= document.createElement("canvas");
+  const maximumWidth = 1280;
+  const scale = Math.min(1, maximumWidth / video.videoWidth);
+  barcodeFrameCanvas.width = Math.round(video.videoWidth * scale);
+  barcodeFrameCanvas.height = Math.round(video.videoHeight * scale);
+  const context = barcodeFrameCanvas.getContext("2d", { alpha: false });
+  context.drawImage(video, 0, 0, barcodeFrameCanvas.width, barcodeFrameCanvas.height);
+  const source = barcodeFrameCanvas.toDataURL("image/jpeg", .92);
+
+  return new Promise(resolve => {
+    try {
+      window.Quagga.decodeSingle({
+        src: source,
+        numOfWorkers: 0,
+        locate: true,
+        inputStream: { size: 800 },
+        locator: { halfSample: true, patchSize: "medium" },
+        decoder: { readers: ["ean_reader", "ean_8_reader"], multiple: false },
+      }, result => {
+        quaggaScanPending = false;
+        const ean = String(result?.codeResult?.code || "").replace(/\D/g, "");
+        resolve(isValidEan(ean) ? ean : "");
+      });
+    } catch {
+      quaggaScanPending = false;
+      resolve("");
+    }
+  });
 }
 
 function getCameraFocusModes(track) {
@@ -345,7 +386,8 @@ async function openBarcodeScanner() {
     updateScannerStatus("Este navegador não permite aceder à câmara.");
     return;
   }
-  if (!("BarcodeDetector" in window)) {
+  const quaggaAvailable = Boolean(window.Quagga?.decodeSingle);
+  if (!("BarcodeDetector" in window) && !quaggaAvailable) {
     updateScannerStatus("Este navegador não suporta a leitura automática de códigos de barras.");
     return;
   }
@@ -353,13 +395,15 @@ async function openBarcodeScanner() {
   const session = ++barcodeSession;
   try {
     const desiredFormats = ["ean_13", "ean_8"];
-    const supportedFormats = typeof window.BarcodeDetector.getSupportedFormats === "function"
-      ? await window.BarcodeDetector.getSupportedFormats()
-      : desiredFormats;
-    const formats = desiredFormats.filter(format => supportedFormats.includes(format));
-    if (!formats.length) throw new Error("EAN_NOT_SUPPORTED");
-
-    const detector = new window.BarcodeDetector({ formats });
+    let detector = null;
+    if ("BarcodeDetector" in window) {
+      const supportedFormats = typeof window.BarcodeDetector.getSupportedFormats === "function"
+        ? await window.BarcodeDetector.getSupportedFormats()
+        : desiredFormats;
+      const formats = desiredFormats.filter(format => supportedFormats.includes(format));
+      if (formats.length) detector = new window.BarcodeDetector({ formats });
+    }
+    if (!detector && !quaggaAvailable) throw new Error("EAN_NOT_SUPPORTED");
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -387,8 +431,17 @@ async function openBarcodeScanner() {
       if (!state.scannerOpen || session !== barcodeSession) return;
       try {
         if (video.readyState >= 2) {
-          const codes = await detector.detect(video);
-          const ean = codes.map(code => String(code.rawValue || "").replace(/\D/g, "")).find(isValidEan);
+          let codes = [];
+          if (detector) {
+            try { codes = await detector.detect(video); } catch { /* O Quagga2 continua como alternativa. */ }
+          }
+          let ean = codes.map(code => String(code.rawValue || "").replace(/\D/g, "")).find(isValidEan) || "";
+          const now = performance.now();
+          if (!ean && quaggaAvailable && now - lastQuaggaScanAt >= 450) {
+            lastQuaggaScanAt = now;
+            ean = await decodeEanWithQuagga(video);
+          }
+          if (!state.scannerOpen || session !== barcodeSession) return;
           if (ean) {
             const found = findSetByEan(ean);
             if (found) {
