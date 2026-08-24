@@ -138,7 +138,7 @@ function resultMarkup(item) {
 
 function render() {
   const content = !state.mode ? optionsMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
-  document.querySelector("#app").innerHTML = headerMarkup() + content;
+  document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>`;
 }
 
 function normalizeHeader(value) {

@@ -127,3 +127,9 @@
   .set-photo-meta{grid-template-columns:82px minmax(0,1fr);min-height:41px}.set-photo-meta>span{padding:3px 10px}.set-photo-meta b{font-size:14px}
   .movement-form-actions{gap:11px;margin-top:17px}.movement-form-actions button{height:50px;font-size:15px}
 }
+
+html,body{height:100%;overflow:hidden}
+.filter-definitions{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+.app-shell{height:100dvh;min-height:0;padding-bottom:0;display:flex;flex-direction:column;overflow:hidden}
+.masthead{z-index:50;flex:0 0 auto}
+.app-content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
