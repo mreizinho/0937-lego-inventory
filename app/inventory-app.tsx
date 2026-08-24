@@ -92,7 +92,7 @@ export default function Home() {
           {mode === "entrada" || mode === "saida" ? <div className="entry-keypad">
             <div className="entry-keypad-title"><h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2></div>
             <label htmlFor="entry-code">Digite o N.º do Set ou Código de Barras</label>
-            <input ref={inputRef} id="entry-code" className="keypad-display" value={query} readOnly inputMode="none" aria-label="Código introduzido através do teclado no ecrã" />
+            <input ref={inputRef} id="entry-code" className="keypad-display" value={query} readOnly inputMode="none" tabIndex={-1} onPointerDown={event => event.preventDefault()} aria-label="Código introduzido através do teclado no ecrã" />
             <div className="number-grid">
               {[1,2,3,4,5,6,7,8,9].map(number => <button key={number} onClick={() => { setQuery(value => value + number); setSelected(null); }}>{number}</button>)}
               <button className="delete-key" aria-label="Apagar último dígito" onClick={() => { setQuery(value => value.slice(0,-1)); setSelected(null); }}>C</button>
