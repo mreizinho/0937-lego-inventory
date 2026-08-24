@@ -32,8 +32,6 @@ jobs:
 
       - name: Construir site estático
         run: npm run build
-        env:
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_OAUTH_CLIENT_ID }}
 
       - name: Ajustar caminhos para GitHub Pages
         run: |
