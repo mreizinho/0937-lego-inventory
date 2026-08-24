@@ -84,6 +84,17 @@ export default function Home() {
     return () => script.removeEventListener("load", ready);
   }, []);
 
+  useEffect(() => {
+    const savedToken = sessionStorage.getItem("googleSheetsAccessToken");
+    if (!savedToken) return;
+    setAccessToken(savedToken);
+    loadCatalog(savedToken).catch(() => {
+      sessionStorage.removeItem("googleSheetsAccessToken");
+      setAccessToken(""); setCatalogRows([]); setLoggedIn(false);
+      setLoginError("A sessão Google expirou. Inicia sessão novamente.");
+    });
+  }, []);
+
   async function loadCatalog(token: string) {
     const range = encodeURIComponent("BricksetSets!A1:ZZ");
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -110,7 +121,7 @@ export default function Home() {
       scope: "https://www.googleapis.com/auth/spreadsheets",
       callback: async response => {
         if (!response.access_token) { const message = `Não foi possível iniciar sessão com Google${response.error ? ` (${response.error})` : ""}.`; setLoggedIn(false); setLoginError(message); setStatus(message); return; }
-        try { await loadCatalog(response.access_token); setAccessToken(response.access_token); }
+        try { await loadCatalog(response.access_token); setAccessToken(response.access_token); sessionStorage.setItem("googleSheetsAccessToken", response.access_token); }
         catch (error) {
           setLoggedIn(false); setCatalogRows([]); setAccessToken("");
           const code = error instanceof Error ? error.message : "SHEETS_ERROR";
@@ -128,6 +139,7 @@ export default function Home() {
 
   function logoutGoogle() {
     if (accessToken && window.google) window.google.accounts.oauth2.revoke(accessToken);
+    sessionStorage.removeItem("googleSheetsAccessToken");
     setAccessToken(""); setCatalogRows([]); setLoggedIn(false); setLoginError(""); setMode(null); setMenuOpen(false); setStatus("Sessão terminada");
   }
 
