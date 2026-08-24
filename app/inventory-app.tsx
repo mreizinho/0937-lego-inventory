@@ -35,7 +35,11 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const found = useMemo(() => sets.find(s => s.code === query.trim() || s.ean === query.trim()), [query]);
 
-  function chooseMode(next: Mode) { setMode(next); setSelected(null); setTimeout(() => inputRef.current?.focus(), 50); }
+  function chooseMode(next: Mode) {
+    setMode(next);
+    setSelected(null);
+    if (next !== "entrada" && next !== "saida") setTimeout(() => inputRef.current?.focus(), 50);
+  }
   function lookup() {
     if (found) { setSelected(found); setStatus(`Conjunto ${found.code} encontrado no catálogo`); }
     else { setSelected(null); setStatus(query ? "Código não encontrado. Confirma o número ou EAN." : "Digite ou leia um código para continuar."); }
@@ -88,7 +92,7 @@ export default function Home() {
           {mode === "entrada" || mode === "saida" ? <div className="entry-keypad">
             <div className="entry-keypad-title"><h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2></div>
             <label htmlFor="entry-code">Digite o N.º do Set ou Código de Barras</label>
-            <input ref={inputRef} id="entry-code" className="keypad-display" value={query} onChange={e => { setQuery(e.target.value.replace(/\D/g, "")); setSelected(null); }} onKeyDown={e => e.key === "Enter" && lookup()} inputMode="numeric" autoComplete="off" />
+            <input ref={inputRef} id="entry-code" className="keypad-display" value={query} readOnly inputMode="none" aria-label="Código introduzido através do teclado no ecrã" />
             <div className="number-grid">
               {[1,2,3,4,5,6,7,8,9].map(number => <button key={number} onClick={() => { setQuery(value => value + number); setSelected(null); }}>{number}</button>)}
               <button className="delete-key" aria-label="Apagar último dígito" onClick={() => { setQuery(value => value.slice(0,-1)); setSelected(null); }}>C</button>
@@ -96,7 +100,7 @@ export default function Home() {
               <button className="ok-key" onClick={lookup}>OK</button>
             </div>
             <div className="keypad-actions">
-              <button className="clear-key" onClick={() => { setQuery(""); setSelected(null); inputRef.current?.focus(); }}>LIMPAR</button>
+              <button className="clear-key" onClick={() => { setQuery(""); setSelected(null); }}>LIMPAR</button>
               <button className="scanner-key" onClick={() => { setQuery("5702016370799"); setSelected(null); }}><ScannerGlyph /> SCANNER</button>
             </div>
           </div> : <>
