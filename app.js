@@ -26,7 +26,7 @@ let barcodeScanTimer = null;
 let barcodeSession = 0;
 let barcodeFocusTimer = null;
 let quaggaScanPending = false;
-let lastQuaggaScanAt = 0;
+let lastQuaggaScanAt = Number.NEGATIVE_INFINITY;
 let barcodeFrameCanvas = null;
 
 const fallbackSets = [
@@ -274,7 +274,7 @@ function stopBarcodeCamera() {
   barcodeScanTimer = null;
   barcodeFocusTimer = null;
   quaggaScanPending = false;
-  lastQuaggaScanAt = 0;
+  lastQuaggaScanAt = Number.NEGATIVE_INFINITY;
   if (barcodeStream) barcodeStream.getTracks().forEach(track => track.stop());
   barcodeStream = null;
   const video = document.querySelector("#barcode-camera");
@@ -431,15 +431,17 @@ async function openBarcodeScanner() {
       if (!state.scannerOpen || session !== barcodeSession) return;
       try {
         if (video.readyState >= 2) {
-          let codes = [];
-          if (detector) {
-            try { codes = await detector.detect(video); } catch { /* O Quagga2 continua como alternativa. */ }
-          }
-          let ean = codes.map(code => String(code.rawValue || "").replace(/\D/g, "")).find(isValidEan) || "";
           const now = performance.now();
-          if (!ean && quaggaAvailable && now - lastQuaggaScanAt >= 450) {
+          let ean = "";
+          if (quaggaAvailable && now - lastQuaggaScanAt >= 450) {
             lastQuaggaScanAt = now;
             ean = await decodeEanWithQuagga(video);
+          }
+          if (!ean && detector) {
+            try {
+              const codes = await detector.detect(video);
+              ean = codes.map(code => String(code.rawValue || "").replace(/\D/g, "")).find(isValidEan) || "";
+            } catch { /* Mantém o Quagga2 como leitor principal. */ }
           }
           if (!state.scannerOpen || session !== barcodeSession) return;
           if (ean) {
