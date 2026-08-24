@@ -44,6 +44,7 @@ export default function Home() {
   const [googleReady, setGoogleReady] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const [catalogRows, setCatalogRows] = useState<string[][]>([]);
+  const [loginError, setLoginError] = useState("");
   const [status, setStatus] = useState("Catálogo sincronizado há 2 min");
   const inputRef = useRef<HTMLInputElement>(null);
   const found = useMemo(() => {
@@ -85,28 +86,39 @@ export default function Home() {
   async function loadCatalog(token: string) {
     const range = encodeURIComponent("BricksetSets!A1:ZZ");
     const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: { Authorization: `Bearer ${token}` } });
-    if (response.status === 403 || response.status === 404) throw new Error("NO_ACCESS");
-    if (!response.ok) throw new Error("SHEETS_ERROR");
+    if (response.status === 401) throw new Error("AUTH_EXPIRED");
+    if (response.status === 403) throw new Error("NO_ACCESS");
+    if (response.status === 404) throw new Error("SPREADSHEET_NOT_FOUND");
+    if (response.status === 400) throw new Error("SHEET_NOT_FOUND");
+    if (!response.ok) throw new Error(`SHEETS_ERROR_${response.status}`);
     const data = await response.json() as { values?: Array<Array<string | number>> };
     const rows = (data.values ?? []).map(row => row.map(value => String(value)));
     setCatalogRows(rows);
     setLoggedIn(true);
+    setLoginError("");
     setStatus("Sessão iniciada · catálogo BricksetSets disponível");
   }
 
   function loginWithGoogle() {
     setMenuOpen(false);
-    if (!googleClientId) { setStatus("Login Google ainda não configurado."); return; }
-    if (!googleReady || !window.google) { setStatus("A preparar o login Google. Tenta novamente dentro de instantes."); return; }
+    setLoginError("");
+    if (!googleClientId) { setLoginError("Login Google ainda não configurado."); setStatus("Login Google ainda não configurado."); return; }
+    if (!googleReady || !window.google) { setLoginError("A preparar o login Google. Tenta novamente."); setStatus("A preparar o login Google. Tenta novamente dentro de instantes."); return; }
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: googleClientId,
       scope: "https://www.googleapis.com/auth/spreadsheets",
       callback: async response => {
-        if (!response.access_token) { setLoggedIn(false); setStatus("Não foi possível iniciar sessão com Google."); return; }
+        if (!response.access_token) { const message = `Não foi possível iniciar sessão com Google${response.error ? ` (${response.error})` : ""}.`; setLoggedIn(false); setLoginError(message); setStatus(message); return; }
         try { await loadCatalog(response.access_token); setAccessToken(response.access_token); }
         catch (error) {
           setLoggedIn(false); setCatalogRows([]); setAccessToken("");
-          setStatus(error instanceof Error && error.message === "NO_ACCESS" ? "Esta conta Google não tem acesso ao inventário." : "Não foi possível consultar o Google Sheets.");
+          const code = error instanceof Error ? error.message : "SHEETS_ERROR";
+          const message = code === "NO_ACCESS" ? "Esta conta Google não tem acesso ao inventário."
+            : code === "AUTH_EXPIRED" ? "A autorização Google expirou. Inicia sessão novamente."
+            : code === "SPREADSHEET_NOT_FOUND" ? "O spreadsheet do inventário não foi encontrado."
+            : code === "SHEET_NOT_FOUND" ? "A folha BricksetSets não foi encontrada."
+            : `Não foi possível consultar o Google Sheets (${code}).`;
+          setLoginError(message); setStatus(message);
         }
       },
     });
@@ -115,7 +127,7 @@ export default function Home() {
 
   function logoutGoogle() {
     if (accessToken && window.google) window.google.accounts.oauth2.revoke(accessToken);
-    setAccessToken(""); setCatalogRows([]); setLoggedIn(false); setMode(null); setMenuOpen(false); setStatus("Sessão terminada");
+    setAccessToken(""); setCatalogRows([]); setLoggedIn(false); setLoginError(""); setMode(null); setMenuOpen(false); setStatus("Sessão terminada");
   }
 
   function chooseMode(next: Mode) {
@@ -171,7 +183,7 @@ export default function Home() {
       <section className="workspace">
         {!mode ? <section className="options-panel">
           <h2 className="options-title">Opções</h2>
-          {!loggedIn && <button type="button" className="login-required" onClick={loginWithGoogle}><IconLock aria-hidden="true" /><span><strong>Inicia sessão para continuar</strong><small>As opções ficam disponíveis após o login com Google.</small></span></button>}
+          {!loggedIn && <button type="button" className={`login-required ${loginError ? "has-error" : ""}`} onClick={loginWithGoogle}><IconLock aria-hidden="true" /><span><strong>{loginError || "Inicia sessão para continuar"}</strong><small>{loginError ? "Toca aqui para tentar novamente." : "As opções ficam disponíveis após o login com Google."}</small></span></button>}
           <div className="options-grid">
             {(["entrada", "saida", "consulta", "lote"] as Mode[]).map(item => <button key={item} disabled={!loggedIn} onClick={() => chooseMode(item)} className={`option-card ${item}`}><span className="mode-option-image"><img src={`${basePath}/options/${item === "consulta" ? "lote" : item === "lote" ? "consultar" : item}.png`} alt="" /></span><span><strong>{item === "entrada" ? "Entrada" : item === "saida" ? "Saida" : item === "consulta" ? "Consultar" : "Modo Lote"}</strong><small>{item === "entrada" ? "Registar set recebido" : item === "saida" ? "Registar set enviado" : item === "consulta" ? "Ver detalhes e stock" : "Scan múltiplo rápido"}</small></span><b>›</b></button>)}
           </div>
