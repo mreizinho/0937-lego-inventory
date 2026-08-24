@@ -16,8 +16,14 @@ const state = {
   checkingCredentials: true,
   movementForm: { origin: "", status: "", storage: "", qty: "1" },
   photoMetaVisible: true,
+  scannerOpen: false,
+  scannerStatus: "",
   status: "Catálogo sincronizado há 2 min",
 };
+
+let barcodeStream = null;
+let barcodeScanTimer = null;
+let barcodeSession = 0;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -108,6 +114,16 @@ function keypadMarkup() {
   </div></section></section>`;
 }
 
+function scannerMarkup() {
+  return `<section class="camera-scanner" role="dialog" aria-modal="true" aria-labelledby="camera-scanner-title">
+    <div class="camera-scanner-panel">
+      <header><strong id="camera-scanner-title">LER CÓDIGO DE BARRAS</strong><button type="button" data-action="close-scanner" aria-label="Fechar leitor">${icons.close}</button></header>
+      <div class="camera-preview"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span></div>
+      <p id="camera-scanner-status" role="status" aria-live="polite">${escapeHtml(state.scannerStatus)}</p>
+    </div>
+  </section>`;
+}
+
 function foundMarkup() {
   const item = state.selected;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
@@ -137,7 +153,7 @@ function resultMarkup(item) {
 
 function render() {
   const content = !state.mode ? optionsMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
-  document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>`;
+  document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}`;
 }
 
 function normalizeHeader(value) {
@@ -148,7 +164,8 @@ function findSet(code) {
   const query = code.trim();
   if (!state.catalogRows.length) return fallbackSets.find(item => item.code === query || item.ean === query);
   const headers = state.catalogRows.slice(0, 2);
-  const row = state.catalogRows.slice(2).find(item => String(item[1] ?? "").trim() === query || item.some((cell, column) => headers.some(header => normalizeHeader(header[column]) === "ean") && String(cell).trim() === query));
+  const eanColumn = 24; // Coluna Y da folha BricksetSets.
+  const row = state.catalogRows.slice(2).find(item => String(item[1] ?? "").trim() === query || String(item[eanColumn] ?? "").trim() === query);
   if (!row) return undefined;
   const value = name => {
     const wanted = normalizeHeader(name);
@@ -158,7 +175,7 @@ function findSet(code) {
   const number = value("Number") || String(row[1] ?? query);
   const filename = value("ImageFilename");
   const imageFile = filename && /\.[a-z0-9]+$/i.test(filename) ? filename : filename ? `${filename}.jpg` : "";
-  return { code: number, ean: value("EAN"), name: value("SetName") || `Conjunto ${number}`, theme: value("Theme") || "LEGO", year: Number(value("Year") || value("YearFrom")) || 0, pieces: Number(value("Pieces")) || 0, stock: 0, location: "—", color: "#e5edf3", imageUrl: imageFile ? `https://images.brickset.com/sets/images/${imageFile}` : "" };
+  return { code: number, ean: String(row[eanColumn] ?? value("EAN")), name: value("SetName") || `Conjunto ${number}`, theme: value("Theme") || "LEGO", year: Number(value("Year") || value("YearFrom")) || 0, pieces: Number(value("Pieces")) || 0, stock: 0, location: "—", color: "#e5edf3", imageUrl: imageFile ? `https://images.brickset.com/sets/images/${imageFile}` : "" };
 }
 
 async function loadCatalog(token) {
@@ -225,6 +242,107 @@ function lookup() {
   render();
 }
 
+function updateScannerStatus(message) {
+  state.scannerStatus = message;
+  const status = document.querySelector("#camera-scanner-status");
+  if (status) status.textContent = message;
+}
+
+function stopBarcodeCamera() {
+  barcodeSession += 1;
+  if (barcodeScanTimer) window.clearTimeout(barcodeScanTimer);
+  barcodeScanTimer = null;
+  if (barcodeStream) barcodeStream.getTracks().forEach(track => track.stop());
+  barcodeStream = null;
+  const video = document.querySelector("#barcode-camera");
+  if (video) video.srcObject = null;
+}
+
+function closeBarcodeScanner() {
+  stopBarcodeCamera();
+  state.scannerOpen = false;
+  state.scannerStatus = "";
+  document.querySelector(".camera-scanner")?.remove();
+}
+
+async function openBarcodeScanner() {
+  if (state.scannerOpen) return;
+  state.scannerOpen = true;
+  state.scannerStatus = "A preparar a câmara…";
+  document.querySelector("#app")?.insertAdjacentHTML("beforeend", scannerMarkup());
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    updateScannerStatus("Este navegador não permite aceder à câmara.");
+    return;
+  }
+  if (!("BarcodeDetector" in window)) {
+    updateScannerStatus("Este navegador não suporta a leitura automática de códigos de barras.");
+    return;
+  }
+
+  const session = ++barcodeSession;
+  try {
+    const desiredFormats = ["ean_13", "ean_8", "upc_a", "upc_e"];
+    const supportedFormats = typeof window.BarcodeDetector.getSupportedFormats === "function"
+      ? await window.BarcodeDetector.getSupportedFormats()
+      : desiredFormats;
+    const formats = desiredFormats.filter(format => supportedFormats.includes(format));
+    if (!formats.length) throw new Error("EAN_NOT_SUPPORTED");
+
+    const detector = new window.BarcodeDetector({ formats });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    if (!state.scannerOpen || session !== barcodeSession) {
+      stream.getTracks().forEach(track => track.stop());
+      return;
+    }
+
+    barcodeStream = stream;
+    const video = document.querySelector("#barcode-camera");
+    if (!video) {
+      stopBarcodeCamera();
+      return;
+    }
+    video.srcObject = stream;
+    await video.play();
+    updateScannerStatus("Aponte a câmara para o código EAN.");
+
+    const scanFrame = async () => {
+      if (!state.scannerOpen || session !== barcodeSession) return;
+      try {
+        if (video.readyState >= 2) {
+          const codes = await detector.detect(video);
+          const ean = codes.map(code => String(code.rawValue || "").replace(/\D/g, "")).find(value => value.length >= 8);
+          if (ean) {
+            state.query = ean;
+            stopBarcodeCamera();
+            state.scannerOpen = false;
+            state.scannerStatus = "";
+            document.querySelector(".camera-scanner")?.remove();
+            lookup();
+            return;
+          }
+        }
+      } catch {
+        updateScannerStatus("Não foi possível ler este código. Tente aproximar ou melhorar a iluminação.");
+      }
+      barcodeScanTimer = window.setTimeout(scanFrame, 140);
+    };
+    scanFrame();
+  } catch (error) {
+    stopBarcodeCamera();
+    const messages = {
+      NotAllowedError: "O acesso à câmara foi recusado. Autorize a câmara nas definições do navegador.",
+      NotFoundError: "Não foi encontrada uma câmara neste dispositivo.",
+      NotReadableError: "A câmara está a ser utilizada por outra aplicação.",
+      EAN_NOT_SUPPORTED: "Este navegador não suporta a leitura de códigos EAN.",
+    };
+    updateScannerStatus(messages[error.name] || messages[error.message] || "Não foi possível iniciar a câmara.");
+  }
+}
+
 document.addEventListener("click", event => {
   const modeButton = event.target.closest("[data-mode]");
   if (modeButton && !modeButton.disabled) {
@@ -246,6 +364,8 @@ document.addEventListener("click", event => {
   }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
+  if (action === "scanner") { openBarcodeScanner(); return; }
+  if (action === "close-scanner") { closeBarcodeScanner(); return; }
   if (action === "toggle-photo-meta") {
     state.photoMetaVisible = !state.photoMetaVisible;
     const photo = event.target.closest(".set-found-photo");
@@ -281,7 +401,6 @@ document.addEventListener("click", event => {
     return;
   }
   if (action === "lookup") { lookup(); return; }
-  if (action === "scanner") Object.assign(state, { query: "5702016370799", selected: null });
   if (action === "login") { loginWithGoogle(); return; }
   if (action === "logout") { logoutGoogle(); return; }
   if (action === "open-sheet") window.open(`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit`, "_blank", "noopener");
@@ -306,8 +425,18 @@ document.addEventListener("input", event => {
 });
 
 document.addEventListener("keydown", event => {
+  if (state.scannerOpen && event.key === "Escape") {
+    closeBarcodeScanner();
+    return;
+  }
   if (event.target.id === "lego-code" && event.key === "Enter") lookup();
 });
+
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state.scannerOpen) closeBarcodeScanner();
+});
+
+window.addEventListener("beforeunload", stopBarcodeCamera);
 
 async function restoreSession() {
   render();
