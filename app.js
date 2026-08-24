@@ -14,6 +14,7 @@ const state = {
   catalogRows: [],
   loginError: "",
   checkingCredentials: true,
+  movementForm: { origin: "", status: "", storage: "", qty: "1" },
   status: "Catálogo sincronizado há 2 min",
 };
 
@@ -113,6 +114,13 @@ function foundMarkup() {
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
     <div class="set-found-photo">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}</div>
     <dl><div><dt>ANO</dt><dd>${escapeHtml(item.year || "—")}</dd></div><div><dt>TEMA</dt><dd>${escapeHtml(item.theme || "—")}</dd></div></dl>
+    <div class="movement-fields">
+      <label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>
+      <label><span>Estado</span><input type="text" name="status" data-movement-field="status" value="${escapeHtml(state.movementForm.status)}" autocomplete="off"></label>
+      <label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"></label>
+      <div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1" step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>
+    </div>
+    <div class="movement-form-actions"><button type="button" class="movement-cancel" data-action="movement-cancel">CANCELAR</button><button type="button" class="movement-ok" data-action="movement-confirm">OK</button></div>
   </article></div></section></section>`;
 }
 
@@ -206,7 +214,7 @@ function loginWithGoogle() {
 function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
   sessionStorage.removeItem(TOKEN_KEY);
-  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", catalogRows: [], loginError: "", checkingCredentials: false, status: "Sessão terminada" });
+  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: { origin: "", status: "", storage: "", qty: "1" }, status: "Sessão terminada" });
   render();
 }
 
@@ -224,6 +232,7 @@ document.addEventListener("click", event => {
     state.query = "";
     state.selected = null;
     state.menuOpen = false;
+    state.movementForm = { origin: "", status: "", storage: "", qty: "1" };
     render();
     return;
   }
@@ -237,9 +246,26 @@ document.addEventListener("click", event => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
-  if (action === "back") Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false });
+  if (action === "back") Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: { origin: "", status: "", storage: "", qty: "1" } });
   if (action === "delete") { state.query = state.query.slice(0, -1); state.selected = null; }
   if (action === "clear") Object.assign(state, { query: "", selected: null });
+  if (action === "qty-increase") state.movementForm.qty = String(Math.max(1, (Number.parseInt(state.movementForm.qty, 10) || 1) + 1));
+  if (action === "qty-decrease") state.movementForm.qty = String(Math.max(1, (Number.parseInt(state.movementForm.qty, 10) || 1) - 1));
+  if (action === "movement-cancel") {
+    Object.assign(state, { query: "", selected: null, movementForm: { origin: "", status: "", storage: "", qty: "1" } });
+    render();
+    return;
+  }
+  if (action === "movement-confirm") {
+    const requiredFields = [...document.querySelectorAll(".movement-fields [required]")];
+    const invalidField = requiredFields.find(field => !field.checkValidity());
+    if (invalidField) {
+      invalidField.reportValidity();
+      return;
+    }
+    state.status = `${state.mode === "entrada" ? "Entrada" : "Saída"} pronta para registar no sheet Movimentos.`;
+    return;
+  }
   if (action === "lookup") { lookup(); return; }
   if (action === "scanner") Object.assign(state, { query: "5702016370799", selected: null });
   if (action === "login") { loginWithGoogle(); return; }
@@ -250,6 +276,15 @@ document.addEventListener("click", event => {
 });
 
 document.addEventListener("input", event => {
+  const movementField = event.target.dataset?.movementField;
+  if (movementField) {
+    if (movementField === "qty" && event.target.value !== "" && (!/^\d+$/.test(event.target.value) || Number(event.target.value) < 1)) {
+      event.target.value = state.movementForm.qty;
+      return;
+    }
+    state.movementForm[movementField] = event.target.value;
+    return;
+  }
   if (event.target.id !== "lego-code") return;
   state.query = event.target.value.replace(/\D/g, "");
   state.selected = null;
