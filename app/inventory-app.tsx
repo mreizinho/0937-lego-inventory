@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { IconBrandGoogle, IconChevronRight, IconClipboardList, IconDownload, IconEye, IconFilter, IconLock, IconLogout, IconMenu2, IconPackageExport, IconPackageImport, IconRefresh, IconScan, IconSearch, IconTable, IconX } from "@tabler/icons-react";
+import { IconBrandGoogle, IconChevronLeft, IconChevronRight, IconClipboardList, IconDownload, IconEye, IconFilter, IconLock, IconLogout, IconMenu2, IconPackageExport, IconPackageImport, IconRefresh, IconScan, IconSearch, IconTable, IconX } from "@tabler/icons-react";
 
 type Mode = "entrada" | "saida" | "consulta" | "lote";
 type LegoSet = { code: string; ean: string; name: string; theme: string; year: number; pieces: number; stock: number; location: string; color: string; imageUrl?: string };
@@ -203,7 +203,7 @@ export default function Home() {
         </section> : <section className="scan-panel">
           {mode === "entrada" || mode === "saida" ? selected ? <div className="set-found-screen">
             <div className="entry-keypad-title">
-              <button className="entry-title-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }} aria-label="Voltar às opções">←</button>
+              <button className="entry-title-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }} aria-label="Voltar às opções"><IconChevronLeft stroke={3.5} aria-hidden="true" /></button>
               <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
               <div className="entry-title-menu">
                 <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
@@ -224,7 +224,7 @@ export default function Home() {
             </article>
           </div> : <div className="entry-keypad">
             <div className="entry-keypad-title">
-              <button className="entry-title-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }} aria-label="Voltar às opções">←</button>
+              <button className="entry-title-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }} aria-label="Voltar às opções"><IconChevronLeft stroke={3.5} aria-hidden="true" /></button>
               <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
               <div className="entry-title-menu">
                 <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
