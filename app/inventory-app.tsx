@@ -88,7 +88,7 @@ export default function Home() {
       <section className="workspace">
         {!mode ? <section className="options-panel">
           <h2 className="options-title">Opções</h2>
-          {!loggedIn && <div className="login-required"><IconLock aria-hidden="true" /><span><strong>Inicia sessão para continuar</strong><small>As opções ficam disponíveis após o login com Google.</small></span></div>}
+          {!loggedIn && <button type="button" className="login-required" onClick={() => setLoggedIn(true)}><IconLock aria-hidden="true" /><span><strong>Inicia sessão para continuar</strong><small>As opções ficam disponíveis após o login com Google.</small></span></button>}
           <div className="options-grid">
             {(["entrada", "saida", "consulta", "lote"] as Mode[]).map(item => <button key={item} disabled={!loggedIn} onClick={() => chooseMode(item)} className={`option-card ${item}`}><span className="mode-option-image"><img src={`${basePath}/options/${item === "consulta" ? "lote" : item === "lote" ? "consultar" : item}.png`} alt="" /></span><span><strong>{item === "entrada" ? "Entrada" : item === "saida" ? "Saida" : item === "consulta" ? "Consultar" : "Modo Lote"}</strong><small>{item === "entrada" ? "Registar set recebido" : item === "saida" ? "Registar set enviado" : item === "consulta" ? "Ver detalhes e stock" : "Scan múltiplo rápido"}</small></span><b>›</b></button>)}
           </div>
