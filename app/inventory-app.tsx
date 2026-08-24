@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { IconBrandGoogle, IconChevronRight, IconClipboardList, IconDownload, IconEye, IconFilter, IconLock, IconLogout, IconMenu2, IconPackageExport, IconPackageImport, IconRefresh, IconScan, IconSearch, IconTable, IconX } from "@tabler/icons-react";
 
 type Mode = "entrada" | "saida" | "consulta" | "lote";
@@ -14,6 +14,16 @@ const sets: LegoSet[] = [
 ];
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
+const spreadsheetId = "1uLDmcH1U2ayy08LkMXHKvqddYkmwUQqAmd520ilo_XI";
+
+type GoogleTokenResponse = { access_token?: string; error?: string };
+
+declare global {
+  interface Window {
+    google?: { accounts: { oauth2: { initTokenClient: (config: { client_id: string; scope: string; callback: (response: GoogleTokenResponse) => void }) => { requestAccessToken: (options?: { prompt?: string }) => void }; revoke: (token: string, callback?: () => void) => void } } };
+  }
+}
 
 function BrickMark() { return <span className="brick-mark" aria-hidden="true"><i /><i /><i /><i /></span>; }
 function ScannerGlyph() { return <svg className="scanner-glyph" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M9 3H5a2 2 0 0 0-2 2v4M19 3h4a2 2 0 0 1 2 2v4M9 25H5a2 2 0 0 1-2-2v-4M19 25h4a2 2 0 0 0 2-2v-4M7 9v10M10 9v10M14 9v10M17 9v10M21 9v10" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>; }
@@ -31,9 +41,78 @@ export default function Home() {
   const [selected, setSelected] = useState<LegoSet | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const [catalogRows, setCatalogRows] = useState<string[][]>([]);
   const [status, setStatus] = useState("Catálogo sincronizado há 2 min");
   const inputRef = useRef<HTMLInputElement>(null);
-  const found = useMemo(() => sets.find(s => s.code === query.trim() || s.ean === query.trim()), [query]);
+  const found = useMemo(() => {
+    const code = query.trim();
+    if (catalogRows.length) {
+      const headers = catalogRows.slice(0, 2);
+      const row = catalogRows.slice(2).find(item => String(item[1] ?? "").trim() === code);
+      if (row) {
+        const headerNames = row.map((_, index) => `${headers[0]?.[index] ?? ""} ${headers[1]?.[index] ?? ""}`.toLowerCase());
+        const value = (...names: string[]) => {
+          const index = headerNames.findIndex(header => names.some(name => header.includes(name)));
+          return index >= 0 ? String(row[index] ?? "") : "";
+        };
+        return {
+          code: String(row[1] ?? code), ean: value("ean", "barcode"), name: value("name", "nome", "title") || `Conjunto ${code}`,
+          theme: value("theme", "tema") || "LEGO", year: Number(value("year", "ano")) || 0,
+          pieces: Number(value("pieces", "peças", "pecas")) || 0, stock: 0, location: "—", color: "#e5edf3",
+        } satisfies LegoSet;
+      }
+      return undefined;
+    }
+    return sets.find(s => s.code === code || s.ean === code);
+  }, [catalogRows, query]);
+
+  useEffect(() => {
+    if (window.google?.accounts?.oauth2) { setGoogleReady(true); return; }
+    const existing = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+    const script = existing ?? document.createElement("script");
+    const ready = () => setGoogleReady(true);
+    script.addEventListener("load", ready);
+    if (!existing) { script.src = "https://accounts.google.com/gsi/client"; script.async = true; document.head.appendChild(script); }
+    return () => script.removeEventListener("load", ready);
+  }, []);
+
+  async function loadCatalog(token: string) {
+    const range = encodeURIComponent("BricksetSets!A1:ZZ");
+    const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${range}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (response.status === 403 || response.status === 404) throw new Error("NO_ACCESS");
+    if (!response.ok) throw new Error("SHEETS_ERROR");
+    const data = await response.json() as { values?: Array<Array<string | number>> };
+    const rows = (data.values ?? []).map(row => row.map(value => String(value)));
+    setCatalogRows(rows);
+    setLoggedIn(true);
+    setStatus("Sessão iniciada · catálogo BricksetSets disponível");
+  }
+
+  function loginWithGoogle() {
+    setMenuOpen(false);
+    if (!googleClientId) { setStatus("Login Google ainda não configurado."); return; }
+    if (!googleReady || !window.google) { setStatus("A preparar o login Google. Tenta novamente dentro de instantes."); return; }
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: googleClientId,
+      scope: "https://www.googleapis.com/auth/spreadsheets",
+      callback: async response => {
+        if (!response.access_token) { setLoggedIn(false); setStatus("Não foi possível iniciar sessão com Google."); return; }
+        try { await loadCatalog(response.access_token); setAccessToken(response.access_token); }
+        catch (error) {
+          setLoggedIn(false); setCatalogRows([]); setAccessToken("");
+          setStatus(error instanceof Error && error.message === "NO_ACCESS" ? "Esta conta Google não tem acesso ao inventário." : "Não foi possível consultar o Google Sheets.");
+        }
+      },
+    });
+    client.requestAccessToken({ prompt: "select_account" });
+  }
+
+  function logoutGoogle() {
+    if (accessToken && window.google) window.google.accounts.oauth2.revoke(accessToken);
+    setAccessToken(""); setCatalogRows([]); setLoggedIn(false); setMode(null); setMenuOpen(false); setStatus("Sessão terminada");
+  }
 
   function chooseMode(next: Mode) {
     setMode(next);
@@ -51,8 +130,8 @@ export default function Home() {
 
   function renderMenu(id: string) {
     return menuOpen && <div className="menu-popover" id={id}>
-      {!loggedIn ? <button className="google-login" onClick={() => { setLoggedIn(true); setMenuOpen(false); }}><span><IconBrandGoogle /></span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>
-      : <button className="google-login signed-in" onClick={() => { setLoggedIn(false); setMode(null); setMenuOpen(false); setStatus("Sessão terminada"); }}><span><IconLogout /></span><span><strong>Terminar sessão</strong><small>Sessão Google de teste</small></span></button>}
+      {!loggedIn ? <button className="google-login" onClick={loginWithGoogle}><span><IconBrandGoogle /></span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>
+      : <button className="google-login signed-in" onClick={logoutGoogle}><span><IconLogout /></span><span><strong>Terminar sessão</strong><small>Sessão Google ativa</small></span></button>}
       <p className="menu-group-title">BASE DE DADOS</p>
       <button className="menu-action"><span className="menu-action-icon yellow"><IconDownload /></span><span><strong>Transferir Base de Dados</strong><small>Download offline da BD</small></span><IconChevronRight className="menu-chevron" /></button>
       <button className="menu-action"><span className="menu-action-icon green"><IconTable /></span><span><strong>Abrir Google Sheets</strong><small>Ver tabela completa</small></span><IconChevronRight className="menu-chevron" /></button>
@@ -88,7 +167,7 @@ export default function Home() {
       <section className="workspace">
         {!mode ? <section className="options-panel">
           <h2 className="options-title">Opções</h2>
-          {!loggedIn && <button type="button" className="login-required" onClick={() => setLoggedIn(true)}><IconLock aria-hidden="true" /><span><strong>Inicia sessão para continuar</strong><small>As opções ficam disponíveis após o login com Google.</small></span></button>}
+          {!loggedIn && <button type="button" className="login-required" onClick={loginWithGoogle}><IconLock aria-hidden="true" /><span><strong>Inicia sessão para continuar</strong><small>As opções ficam disponíveis após o login com Google.</small></span></button>}
           <div className="options-grid">
             {(["entrada", "saida", "consulta", "lote"] as Mode[]).map(item => <button key={item} disabled={!loggedIn} onClick={() => chooseMode(item)} className={`option-card ${item}`}><span className="mode-option-image"><img src={`${basePath}/options/${item === "consulta" ? "lote" : item === "lote" ? "consultar" : item}.png`} alt="" /></span><span><strong>{item === "entrada" ? "Entrada" : item === "saida" ? "Saida" : item === "consulta" ? "Consultar" : "Modo Lote"}</strong><small>{item === "entrada" ? "Registar set recebido" : item === "saida" ? "Registar set enviado" : item === "consulta" ? "Ver detalhes e stock" : "Scan múltiplo rápido"}</small></span><b>›</b></button>)}
           </div>
