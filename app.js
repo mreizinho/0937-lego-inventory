@@ -24,6 +24,7 @@ const state = {
 let barcodeStream = null;
 let barcodeScanTimer = null;
 let barcodeSession = 0;
+let barcodeFocusTimer = null;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -118,7 +119,7 @@ function scannerMarkup() {
   return `<section class="camera-scanner" role="dialog" aria-modal="true" aria-labelledby="camera-scanner-title">
     <div class="camera-scanner-panel">
       <header><strong id="camera-scanner-title">LER CÓDIGO DE BARRAS</strong><button type="button" data-action="close-scanner" aria-label="Fechar leitor">${icons.close}</button></header>
-      <div class="camera-preview"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span></div>
+      <div class="camera-preview" data-action="focus-camera" role="button" tabindex="0" aria-label="Toque para focar a câmara"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span><span class="camera-focus-point" aria-hidden="true"></span></div>
       <p id="camera-scanner-status" role="status" aria-live="polite">${escapeHtml(state.scannerStatus)}</p>
     </div>
   </section>`;
@@ -266,11 +267,65 @@ function updateScannerStatus(message) {
 function stopBarcodeCamera() {
   barcodeSession += 1;
   if (barcodeScanTimer) window.clearTimeout(barcodeScanTimer);
+  if (barcodeFocusTimer) window.clearTimeout(barcodeFocusTimer);
   barcodeScanTimer = null;
+  barcodeFocusTimer = null;
   if (barcodeStream) barcodeStream.getTracks().forEach(track => track.stop());
   barcodeStream = null;
   const video = document.querySelector("#barcode-camera");
   if (video) video.srcObject = null;
+}
+
+function getCameraFocusModes(track) {
+  if (typeof track?.getCapabilities !== "function") return [];
+  const modes = track.getCapabilities().focusMode;
+  return Array.isArray(modes) ? modes : [];
+}
+
+async function enableContinuousCameraFocus(track) {
+  const focusModes = getCameraFocusModes(track);
+  if (!focusModes.includes("continuous")) return false;
+  await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+  return true;
+}
+
+async function focusBarcodeCamera(event) {
+  const track = barcodeStream?.getVideoTracks()[0];
+  if (!track) return;
+
+  const preview = event.target.closest(".camera-preview");
+  const focusPoint = preview?.querySelector(".camera-focus-point");
+  if (preview && focusPoint) {
+    const bounds = preview.getBoundingClientRect();
+    const x = event.clientX || bounds.left + bounds.width / 2;
+    const y = event.clientY || bounds.top + bounds.height / 2;
+    focusPoint.style.left = `${x - bounds.left}px`;
+    focusPoint.style.top = `${y - bounds.top}px`;
+    focusPoint.classList.remove("is-focusing");
+    void focusPoint.offsetWidth;
+    focusPoint.classList.add("is-focusing");
+  }
+
+  const focusModes = getCameraFocusModes(track);
+  try {
+    if (focusModes.includes("single-shot")) {
+      await track.applyConstraints({ advanced: [{ focusMode: "single-shot" }] });
+      updateScannerStatus("A focar… mantenha o código imóvel.");
+      if (barcodeFocusTimer) window.clearTimeout(barcodeFocusTimer);
+      barcodeFocusTimer = window.setTimeout(async () => {
+        try { await enableContinuousCameraFocus(track); } catch { /* O dispositivo mantém o foco disponível. */ }
+        if (state.scannerOpen) updateScannerStatus("Aponte a câmara para o código EAN. Toque na imagem para focar.");
+      }, 900);
+      return;
+    }
+    if (await enableContinuousCameraFocus(track)) {
+      updateScannerStatus("Foco automático ativo. Mantenha o código imóvel.");
+      return;
+    }
+    updateScannerStatus("O foco manual não está disponível neste dispositivo. Afaste ou aproxime ligeiramente a câmara.");
+  } catch {
+    updateScannerStatus("Não foi possível ajustar o foco neste dispositivo.");
+  }
 }
 
 function closeBarcodeScanner() {
@@ -322,7 +377,10 @@ async function openBarcodeScanner() {
     }
     video.srcObject = stream;
     await video.play();
-    updateScannerStatus("Aponte a câmara para o código EAN.");
+    const videoTrack = stream.getVideoTracks()[0];
+    let continuousFocusEnabled = false;
+    try { continuousFocusEnabled = await enableContinuousCameraFocus(videoTrack); } catch { /* Continua com o foco escolhido pelo dispositivo. */ }
+    updateScannerStatus(continuousFocusEnabled ? "Aponte a câmara para o código EAN. Toque na imagem para focar." : "Aponte a câmara para o código EAN.");
     let lastUnknownEan = "";
 
     const scanFrame = async () => {
@@ -391,6 +449,7 @@ document.addEventListener("click", event => {
   if (!action) return;
   if (action === "scanner") { openBarcodeScanner(); return; }
   if (action === "close-scanner") { closeBarcodeScanner(); return; }
+  if (action === "focus-camera") { focusBarcodeCamera(event); return; }
   if (action === "toggle-photo-meta") {
     state.photoMetaVisible = !state.photoMetaVisible;
     const photo = event.target.closest(".set-found-photo");

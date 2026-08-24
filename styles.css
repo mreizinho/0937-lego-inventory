@@ -144,9 +144,12 @@ html,body{height:100%;overflow:hidden}
 .camera-scanner-panel>header strong{grid-column:2;text-align:center;font-size:16px;letter-spacing:.8px}
 .camera-scanner-panel>header button{grid-column:3;width:48px;height:48px;padding:0;border:0;background:transparent;color:#fff;display:grid;place-items:center;cursor:pointer}
 .camera-scanner-panel>header button svg{width:27px;height:27px;stroke-width:2.3}
-.camera-preview{position:relative;flex:1;min-height:0;overflow:hidden;background:#050505}
+.camera-preview{position:relative;flex:1;min-height:0;overflow:hidden;background:#050505;cursor:crosshair;touch-action:manipulation}
 .camera-preview video{width:100%;height:100%;display:block;object-fit:cover}
 .camera-guide{position:absolute;left:8%;right:8%;top:50%;height:150px;border:3px solid rgba(255,255,255,.9);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.28);transform:translateY(-50%);pointer-events:none}
 .camera-guide::after{content:"";position:absolute;left:5%;right:5%;top:50%;height:2px;background:#ff6548;box-shadow:0 0 8px rgba(255,101,72,.7)}
+.camera-focus-point{position:absolute;width:58px;height:58px;border:2px solid #ffd400;border-radius:7px;opacity:0;transform:translate(-50%,-50%) scale(1.3);pointer-events:none}
+.camera-focus-point.is-focusing{animation:camera-focus-pulse .75s ease-out}
+@keyframes camera-focus-pulse{0%{opacity:0;transform:translate(-50%,-50%) scale(1.45)}25%{opacity:1}75%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-50%) scale(.94)}}
 .camera-scanner-panel>p{min-height:66px;margin:0;padding:12px 18px;display:grid;place-items:center;background:#202122;color:#e1e2e3;text-align:center;font-size:13px}
 @media(max-width:850px){.camera-scanner{place-items:stretch}.camera-scanner-panel{width:100%;height:100dvh}.camera-scanner-panel>header{padding-top:env(safe-area-inset-top);height:calc(58px + env(safe-area-inset-top));flex-basis:calc(58px + env(safe-area-inset-top))}.camera-scanner-panel>p{padding-bottom:max(12px,env(safe-area-inset-bottom))}.camera-guide{height:128px}}
