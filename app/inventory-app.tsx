@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { IconBrandGoogle, IconChevronRight, IconClipboardList, IconDownload, IconEye, IconFilter, IconLock, IconLogout, IconMenu2, IconPackageExport, IconPackageImport, IconRefresh, IconScan, IconSearch, IconTable, IconX } from "@tabler/icons-react";
 
 type Mode = "entrada" | "saida" | "consulta" | "lote";
-type LegoSet = { code: string; ean: string; name: string; theme: string; year: number; pieces: number; stock: number; location: string; color: string };
+type LegoSet = { code: string; ean: string; name: string; theme: string; year: number; pieces: number; stock: number; location: string; color: string; imageUrl?: string };
 
 const sets: LegoSet[] = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -52,15 +52,19 @@ export default function Home() {
       const headers = catalogRows.slice(0, 2);
       const row = catalogRows.slice(2).find(item => String(item[1] ?? "").trim() === code);
       if (row) {
-        const headerNames = row.map((_, index) => `${headers[0]?.[index] ?? ""} ${headers[1]?.[index] ?? ""}`.toLowerCase());
-        const value = (...names: string[]) => {
-          const index = headerNames.findIndex(header => names.some(name => header.includes(name)));
+        const normalizeHeader = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const value = (name: string) => {
+          const wanted = normalizeHeader(name);
+          const index = row.findIndex((_, column) => headers.some(headerRow => normalizeHeader(String(headerRow?.[column] ?? "")) === wanted));
           return index >= 0 ? String(row[index] ?? "") : "";
         };
+        const number = value("Number") || String(row[1] ?? code);
+        const imageFilename = value("ImageFilename");
         return {
-          code: String(row[1] ?? code), ean: value("ean", "barcode"), name: value("name", "nome", "title") || `Conjunto ${code}`,
-          theme: value("theme", "tema") || "LEGO", year: Number(value("year", "ano")) || 0,
-          pieces: Number(value("pieces", "peças", "pecas")) || 0, stock: 0, location: "—", color: "#e5edf3",
+          code: number, ean: value("EAN"), name: value("SetName") || `Conjunto ${number}`,
+          theme: value("Theme") || "LEGO", year: Number(value("Year")) || 0,
+          pieces: Number(value("Pieces")) || 0, stock: 0, location: "—", color: "#e5edf3",
+          imageUrl: imageFilename ? `https://images.brickset.com/sets/images/${imageFilename}` : undefined,
         } satisfies LegoSet;
       }
       return undefined;
@@ -172,7 +176,27 @@ export default function Home() {
             {(["entrada", "saida", "consulta", "lote"] as Mode[]).map(item => <button key={item} disabled={!loggedIn} onClick={() => chooseMode(item)} className={`option-card ${item}`}><span className="mode-option-image"><img src={`${basePath}/options/${item === "consulta" ? "lote" : item === "lote" ? "consultar" : item}.png`} alt="" /></span><span><strong>{item === "entrada" ? "Entrada" : item === "saida" ? "Saida" : item === "consulta" ? "Consultar" : "Modo Lote"}</strong><small>{item === "entrada" ? "Registar set recebido" : item === "saida" ? "Registar set enviado" : item === "consulta" ? "Ver detalhes e stock" : "Scan múltiplo rápido"}</small></span><b>›</b></button>)}
           </div>
         </section> : <section className="scan-panel">
-          {mode === "entrada" || mode === "saida" ? <div className="entry-keypad">
+          {mode === "entrada" || mode === "saida" ? selected ? <div className="set-found-screen">
+            <div className="entry-keypad-title">
+              <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
+              <div className="entry-title-menu">
+                <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
+                  {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 aria-hidden="true" />}
+                </button>
+                {renderMenu("movement-menu")}
+              </div>
+            </div>
+            <article className="set-found-card">
+              <h3>{selected.code} <span>–</span> {selected.name}</h3>
+              <div className="set-found-photo">
+                {selected.imageUrl ? <img src={selected.imageUrl} alt={`${selected.code} - ${selected.name}`} /> : <span>Imagem indisponível</span>}
+              </div>
+              <dl>
+                <div><dt>ANO</dt><dd>{selected.year || "—"}</dd></div>
+                <div><dt>TEMA</dt><dd>{selected.theme || "—"}</dd></div>
+              </dl>
+            </article>
+          </div> : <div className="entry-keypad">
             <div className="entry-keypad-title">
               <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
               <div className="entry-title-menu">
@@ -202,7 +226,7 @@ export default function Home() {
             <button className="scanner-button" onClick={() => { setQuery("5702016370799"); setTimeout(() => inputRef.current?.focus(), 30); }}><span className="scan-corners">▦</span><strong>Ler com scanner</strong><small>O leitor envia o EAN automaticamente</small></button>
             <p className="scanner-tip"><b>i</b> Leitores USB/Bluetooth funcionam como teclado: basta apontar e ler.</p>
           </>}
-          {selected && <article className="set-result"><div className="set-art" style={{ background: selected.color }}><BrickMark /><span>#{selected.code}</span></div><div className="set-copy"><p>{selected.theme} · {selected.year}</p><h3>{selected.name}</h3><div className="set-meta"><span><small>PEÇAS</small><b>{selected.pieces.toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>{selected.stock} un.</b></span><span><small>LOCAL</small><b>{selected.location}</b></span></div></div><button className={`confirm-button ${mode}`} onClick={register}>{mode === "entrada" ? "Continuar entrada" : mode === "saida" ? "Continuar saída" : mode === "lote" ? "Adicionar ao lote" : "Abrir ficha"} <span>→</span></button></article>}
+          {selected && mode !== "entrada" && mode !== "saida" && <article className="set-result"><div className="set-art" style={{ background: selected.color }}><BrickMark /><span>#{selected.code}</span></div><div className="set-copy"><p>{selected.theme} · {selected.year}</p><h3>{selected.name}</h3><div className="set-meta"><span><small>PEÇAS</small><b>{selected.pieces.toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>{selected.stock} un.</b></span><span><small>LOCAL</small><b>{selected.location}</b></span></div></div><button className={`confirm-button ${mode}`} onClick={register}>{mode === "lote" ? "Adicionar ao lote" : "Abrir ficha"} <span>→</span></button></article>}
         </section>}
       </section>
       <footer className="status-bar">

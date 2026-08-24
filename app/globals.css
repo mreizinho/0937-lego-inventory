@@ -80,6 +80,7 @@
 .entry-title-menu .hamburger-button{height:42px;color:#fff}
 .entry-title-menu .menu-popover{top:42px;right:0;text-align:left}
 .entry-keypad-title h2{transform:translateY(1px)}
+.set-found-screen{max-width:660px;margin:0 auto}.set-found-card{padding:8px 22px 28px;text-align:center}.set-found-card h3{margin:6px 0 22px;font-size:25px;color:#333}.set-found-card h3 span{color:#7893b2}.set-found-photo{min-height:260px;display:grid;place-items:center;padding:16px;background:#fff;border:1px solid #dfe2e4;box-shadow:0 7px 22px rgba(35,40,44,.1)}.set-found-photo img{display:block;max-width:100%;max-height:330px;object-fit:contain}.set-found-photo span{color:#888}.set-found-card dl{display:grid;grid-template-columns:1fr 1fr;margin:22px 0 0;border:1px solid #dfe2e4;background:#fff}.set-found-card dl>div{padding:14px}.set-found-card dl>div+div{border-left:1px solid #dfe2e4}.set-found-card dt{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#7893b2}.set-found-card dd{margin:5px 0 0;font-size:18px;font-weight:700}
 @media(max-width:850px){
   .mode-button{min-height:76px}
   .mode-option-image{width:46px;height:46px}
@@ -88,6 +89,7 @@
   .options-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;padding:16px}
   .login-required{width:calc(100% - 32px);margin:12px 16px 0}
   .scan-panel{padding:16px 12px}.scan-panel:has(.entry-keypad){overflow:visible}.entry-keypad{padding:0}.entry-keypad-title{position:relative;margin:0 -12px 18px}.entry-keypad>label{font-size:14px}.keypad-display{height:82px;font-size:28px}.number-grid{gap:9px;margin-top:22px}.number-grid button{height:66px;font-size:26px}.keypad-actions{gap:9px;margin-top:14px}.keypad-actions button{height:58px;font-size:15px}
+  .scan-panel:has(.set-found-screen){padding:16px 12px;overflow:visible}.set-found-screen .entry-keypad-title{position:relative;margin:-16px -12px 18px}.set-found-card{padding:4px 8px 22px}.set-found-card h3{margin:4px 0 16px;font-size:20px}.set-found-photo{min-height:220px;padding:10px}.set-found-photo img{max-height:280px}.set-found-card dl{margin-top:16px}.set-found-card dd{font-size:16px}
   .option-card{min-height:165px;display:flex;flex-direction:column;justify-content:center;text-align:center;gap:7px;padding:10px 6px;border-left-width:3px}
   .option-card .mode-option-image{width:88px;height:88px}
   .option-card strong{font-size:15px}.option-card small{font-size:10px}.option-card>b{display:none}
