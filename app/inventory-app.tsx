@@ -185,7 +185,7 @@ export default function Home() {
             <IconSearch aria-hidden="true" />
           </button>
           <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="main-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
-            {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 aria-hidden="true" />}
+            {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 stroke={3.5} aria-hidden="true" />}
           </button>
           {renderMenu("main-menu")}
         </div>
@@ -207,7 +207,7 @@ export default function Home() {
               <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
               <div className="entry-title-menu">
                 <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
-                  {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 aria-hidden="true" />}
+                  {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 stroke={3.5} aria-hidden="true" />}
                 </button>
                 {renderMenu("movement-menu")}
               </div>
@@ -228,7 +228,7 @@ export default function Home() {
               <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
               <div className="entry-title-menu">
                 <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
-                  {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 aria-hidden="true" />}
+                  {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 stroke={3.5} aria-hidden="true" />}
                 </button>
                 {renderMenu("movement-menu")}
               </div>
