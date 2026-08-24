@@ -15,6 +15,7 @@ const state = {
   loginError: "",
   checkingCredentials: true,
   movementForm: { origin: "", status: "", storage: "", qty: "1" },
+  photoMetaVisible: true,
   status: "Catálogo sincronizado há 2 min",
 };
 
@@ -112,8 +113,7 @@ function foundMarkup() {
   const item = state.selected;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
-    <div class="set-found-photo">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}</div>
-    <dl><div><dt>ANO</dt><dd>${escapeHtml(item.year || "—")}</dd></div><div><dt>TEMA</dt><dd>${escapeHtml(item.theme || "—")}</dd></div></dl>
+    <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}${state.photoMetaVisible ? `<span class="set-photo-meta"><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span>` : ""}</button>
     <div class="movement-fields">
       <label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>
       <label><span>Estado</span><input type="text" name="status" data-movement-field="status" value="${escapeHtml(state.movementForm.status)}" autocomplete="off"></label>
@@ -221,6 +221,7 @@ function logoutGoogle() {
 function lookup() {
   const found = findSet(state.query);
   state.selected = found || null;
+  state.photoMetaVisible = true;
   state.status = found ? `Conjunto ${found.code} encontrado no catálogo` : state.query ? "Código não encontrado. Confirma o número ou EAN." : "Digite ou leia um código para continuar.";
   render();
 }
@@ -233,6 +234,7 @@ document.addEventListener("click", event => {
     state.selected = null;
     state.menuOpen = false;
     state.movementForm = { origin: "", status: "", storage: "", qty: "1" };
+    state.photoMetaVisible = true;
     render();
     return;
   }
@@ -251,8 +253,9 @@ document.addEventListener("click", event => {
   if (action === "clear") Object.assign(state, { query: "", selected: null });
   if (action === "qty-increase") state.movementForm.qty = String(Math.max(1, (Number.parseInt(state.movementForm.qty, 10) || 1) + 1));
   if (action === "qty-decrease") state.movementForm.qty = String(Math.max(1, (Number.parseInt(state.movementForm.qty, 10) || 1) - 1));
+  if (action === "toggle-photo-meta") state.photoMetaVisible = !state.photoMetaVisible;
   if (action === "movement-cancel") {
-    Object.assign(state, { query: "", selected: null, movementForm: { origin: "", status: "", storage: "", qty: "1" } });
+    Object.assign(state, { query: "", selected: null, movementForm: { origin: "", status: "", storage: "", qty: "1" }, photoMetaVisible: true });
     render();
     return;
   }
