@@ -13,6 +13,7 @@ const state = {
   accessToken: "",
   catalogRows: [],
   loginError: "",
+  checkingCredentials: true,
   status: "Catálogo sincronizado há 2 min",
 };
 
@@ -57,7 +58,16 @@ function menuItem(symbol, color, title, description, action = "noop") {
 }
 
 function headerMarkup() {
-  if (state.mode === "entrada" || state.mode === "saida") return "";
+  if (state.mode === "entrada" || state.mode === "saida") {
+    return `<header class="masthead movement-header">
+      <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
+      <h1>${state.mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h1>
+      <div class="header-menu movement-header-menu">
+        <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="movement-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
+        ${state.menuOpen ? menuMarkup("movement-menu") : ""}
+      </div>
+    </header>`;
+  }
   return `<header class="masthead">
     <a class="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
       <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg"><img src="public/comunidade-0937.svg" alt="Comunidade 0937"></picture>
@@ -70,20 +80,14 @@ function headerMarkup() {
   </header>`;
 }
 
-function movementTitle() {
-  return `<div class="entry-keypad-title">
-    <button class="entry-title-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
-    <h2>${state.mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
-    <div class="entry-title-menu"><button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="movement-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>${state.menuOpen ? menuMarkup("movement-menu") : ""}</div>
-  </div>`;
-}
-
 function optionCard(mode, title, description, image) {
   return `<button data-mode="${mode}" ${state.loggedIn ? "" : "disabled"} class="option-card ${mode}"><span class="mode-option-image"><img src="public/options/${image}.png" alt=""></span><span><strong>${title}</strong><small>${description}</small></span><b>›</b></button>`;
 }
 
 function optionsMarkup() {
-  const login = state.loggedIn ? "" : `<button type="button" class="login-required ${state.loginError ? "has-error" : ""}" data-action="login">${icons.lock}<span><strong>${escapeHtml(state.loginError || "Inicia sessão para continuar")}</strong><small>${state.loginError ? "Toca aqui para tentar novamente." : "As opções ficam disponíveis após o login com Google."}</small></span></button>`;
+  const loginTitle = state.loginError || (state.checkingCredentials ? "A verificar credenciais..." : "Inicia sessão para continuar");
+  const loginHelp = state.loginError ? "Toca aqui para tentar novamente." : state.checkingCredentials ? "A confirmar o acesso ao Google Sheets." : "As opções ficam disponíveis após o login com Google.";
+  const login = state.loggedIn ? "" : `<button type="button" class="login-required ${state.loginError ? "has-error" : ""}" data-action="login">${icons.lock}<span><strong>${escapeHtml(loginTitle)}</strong><small>${loginHelp}</small></span></button>`;
   return `<section class="intro" id="inventario"><p class="tagline">O que queres fazer hoje?</p></section>
     <section class="workspace"><section class="options-panel"><h2 class="options-title">Opções</h2>${login}<div class="options-grid">
       ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
@@ -95,7 +99,7 @@ function optionsMarkup() {
 
 function keypadMarkup() {
   const numbers = [1,2,3,4,5,6,7,8,9].map(number => `<button data-digit="${number}">${number}</button>`).join("");
-  return `<section class="workspace"><section class="scan-panel"><div class="entry-keypad">${movementTitle()}
+  return `<section class="workspace"><section class="scan-panel"><div class="entry-keypad">
     <label for="entry-code">Digite o N.º do Set ou Código de Barras</label>
     <input id="entry-code" class="keypad-display" value="${escapeHtml(state.query)}" readonly inputmode="none" tabindex="-1" aria-label="Código introduzido através do teclado no ecrã">
     <div class="number-grid">${numbers}<button class="delete-key" data-action="delete" aria-label="Apagar último dígito">C</button><button data-digit="0">0</button><button class="ok-key" data-action="lookup">OK</button></div>
@@ -105,7 +109,7 @@ function keypadMarkup() {
 
 function foundMarkup() {
   const item = state.selected;
-  return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen">${movementTitle()}<article class="set-found-card">
+  return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
     <div class="set-found-photo">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}</div>
     <dl><div><dt>ANO</dt><dd>${escapeHtml(item.year || "—")}</dd></div><div><dt>TEMA</dt><dd>${escapeHtml(item.theme || "—")}</dd></div></dl>
@@ -166,6 +170,7 @@ async function loadCatalog(token) {
 }
 
 function loginWithGoogle() {
+  if (state.checkingCredentials) return;
   state.menuOpen = false;
   state.loginError = "";
   if (!window.google?.accounts?.oauth2) {
@@ -175,10 +180,13 @@ function loginWithGoogle() {
   }
   const client = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: "https://www.googleapis.com/auth/spreadsheets", callback: async response => {
     if (!response.access_token) {
+      state.checkingCredentials = false;
       state.loginError = `Não foi possível iniciar sessão com Google${response.error ? ` (${response.error})` : ""}.`;
       render();
       return;
     }
+    state.checkingCredentials = true;
+    render();
     try {
       await loadCatalog(response.access_token);
       state.accessToken = response.access_token;
@@ -189,6 +197,7 @@ function loginWithGoogle() {
       state.catalogRows = [];
       state.loginError = messages[error.message] || `Não foi possível consultar o Google Sheets (${error.message}).`;
     }
+    state.checkingCredentials = false;
     render();
   }});
   client.requestAccessToken({ prompt: "select_account" });
@@ -197,7 +206,7 @@ function loginWithGoogle() {
 function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
   sessionStorage.removeItem(TOKEN_KEY);
-  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", catalogRows: [], loginError: "", status: "Sessão terminada" });
+  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", catalogRows: [], loginError: "", checkingCredentials: false, status: "Sessão terminada" });
   render();
 }
 
@@ -254,7 +263,11 @@ document.addEventListener("keydown", event => {
 async function restoreSession() {
   render();
   const token = sessionStorage.getItem(TOKEN_KEY);
-  if (!token) return;
+  if (!token) {
+    state.checkingCredentials = false;
+    render();
+    return;
+  }
   try {
     await loadCatalog(token);
     state.accessToken = token;
@@ -262,6 +275,7 @@ async function restoreSession() {
     sessionStorage.removeItem(TOKEN_KEY);
     state.loginError = "A sessão Google expirou. Inicia sessão novamente.";
   }
+  state.checkingCredentials = false;
   render();
 }
 
