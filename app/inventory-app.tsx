@@ -49,9 +49,23 @@ export default function Home() {
     setStatus(`${mode === "entrada" ? "Entrada" : mode === "saida" ? "Saída" : mode === "lote" ? "Item adicionado ao lote" : "Consulta"} preparada para ${selected.code}. Ligação ao Google Sheets por configurar.`);
   }
 
+  function renderMenu(id: string) {
+    return menuOpen && <div className="menu-popover" id={id}>
+      {!loggedIn ? <button className="google-login" onClick={() => { setLoggedIn(true); setMenuOpen(false); }}><span><IconBrandGoogle /></span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>
+      : <button className="google-login signed-in" onClick={() => { setLoggedIn(false); setMode(null); setMenuOpen(false); setStatus("Sessão terminada"); }}><span><IconLogout /></span><span><strong>Terminar sessão</strong><small>Sessão Google de teste</small></span></button>}
+      <p className="menu-group-title">BASE DE DADOS</p>
+      <button className="menu-action"><span className="menu-action-icon yellow"><IconDownload /></span><span><strong>Transferir Base de Dados</strong><small>Download offline da BD</small></span><IconChevronRight className="menu-chevron" /></button>
+      <button className="menu-action"><span className="menu-action-icon green"><IconTable /></span><span><strong>Abrir Google Sheets</strong><small>Ver tabela completa</small></span><IconChevronRight className="menu-chevron" /></button>
+      <button className="menu-action"><span className="menu-action-icon blue"><IconRefresh /></span><span><strong>Atualizar Catálogos</strong><small>Sync via API Brickset</small></span><IconChevronRight className="menu-chevron" /></button>
+      <p className="menu-group-title extras">EXTRAS</p>
+      <button className="menu-action"><span className="menu-action-icon orange"><IconClipboardList /></span><span><strong>Modo Inventário</strong><small>Iniciar novo inventário</small></span><IconChevronRight className="menu-chevron" /></button>
+      <button className="menu-action"><span className="menu-action-icon blue"><IconFilter /></span><span><strong>Consultas Avançadas</strong><small>Filtros por tema, período...</small></span><IconChevronRight className="menu-chevron" /></button>
+    </div>;
+  }
+
   return (
     <main className="app-shell">
-      <header className="masthead">
+      <header className={`masthead ${mode === "entrada" || mode === "saida" ? "movement-screen" : ""}`}>
         <a className="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
           <picture>
             <source media="(max-width: 850px)" srcSet={`${basePath}/comunidade-0937-bricks.svg`} />
@@ -65,17 +79,7 @@ export default function Home() {
           <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="main-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
             {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 aria-hidden="true" />}
           </button>
-          {menuOpen && <div className="menu-popover" id="main-menu">
-            {!loggedIn ? <button className="google-login" onClick={() => { setLoggedIn(true); setMenuOpen(false); }}><span><IconBrandGoogle /></span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>
-            : <button className="google-login signed-in" onClick={() => { setLoggedIn(false); setMode(null); setMenuOpen(false); setStatus("Sessão terminada"); }}><span><IconLogout /></span><span><strong>Terminar sessão</strong><small>Sessão Google de teste</small></span></button>}
-            <p className="menu-group-title">BASE DE DADOS</p>
-            <button className="menu-action"><span className="menu-action-icon yellow"><IconDownload /></span><span><strong>Transferir Base de Dados</strong><small>Download offline da BD</small></span><IconChevronRight className="menu-chevron" /></button>
-            <button className="menu-action"><span className="menu-action-icon green"><IconTable /></span><span><strong>Abrir Google Sheets</strong><small>Ver tabela completa</small></span><IconChevronRight className="menu-chevron" /></button>
-            <button className="menu-action"><span className="menu-action-icon blue"><IconRefresh /></span><span><strong>Atualizar Catálogos</strong><small>Sync via API Brickset</small></span><IconChevronRight className="menu-chevron" /></button>
-            <p className="menu-group-title extras">EXTRAS</p>
-            <button className="menu-action"><span className="menu-action-icon orange"><IconClipboardList /></span><span><strong>Modo Inventário</strong><small>Iniciar novo inventário</small></span><IconChevronRight className="menu-chevron" /></button>
-            <button className="menu-action"><span className="menu-action-icon blue"><IconFilter /></span><span><strong>Consultas Avançadas</strong><small>Filtros por tema, período...</small></span><IconChevronRight className="menu-chevron" /></button>
-          </div>}
+          {renderMenu("main-menu")}
         </div>
       </header>
       {mode !== "entrada" && mode !== "saida" && <section className="intro" id="inventario">
@@ -90,7 +94,15 @@ export default function Home() {
           </div>
         </section> : <section className="scan-panel">
           {mode === "entrada" || mode === "saida" ? <div className="entry-keypad">
-            <div className="entry-keypad-title"><h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2></div>
+            <div className="entry-keypad-title">
+              <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
+              <div className="entry-title-menu">
+                <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
+                  {menuOpen ? <IconX aria-hidden="true" /> : <IconMenu2 aria-hidden="true" />}
+                </button>
+                {renderMenu("movement-menu")}
+              </div>
+            </div>
             <label htmlFor="entry-code">Digite o N.º do Set ou Código de Barras</label>
             <input ref={inputRef} id="entry-code" className="keypad-display" value={query} readOnly inputMode="none" tabIndex={-1} onPointerDown={event => event.preventDefault()} aria-label="Código introduzido através do teclado no ecrã" />
             <div className="number-grid">
