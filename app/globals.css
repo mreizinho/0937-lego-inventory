@@ -81,6 +81,7 @@
 .entry-title-menu .hamburger-button{height:42px;color:#fff}
 .entry-title-menu .menu-popover{top:42px;right:0;text-align:left}
 .entry-keypad-title h2{transform:translateY(1px)}
+.entry-keypad-title{position:relative}.entry-title-back{position:absolute;left:0;top:0;width:54px;height:42px;border:0;background:transparent;color:#fff;font-size:27px;line-height:1;cursor:pointer}
 .set-found-screen{max-width:660px;margin:0 auto}.set-found-card{padding:8px 22px 28px;text-align:center}.set-found-card h3{margin:6px 0 22px;font-size:25px;color:#333}.set-found-card h3 span{color:#7893b2}.set-found-photo{min-height:260px;display:grid;place-items:center;padding:16px;background:#fff;border:1px solid #dfe2e4;box-shadow:0 7px 22px rgba(35,40,44,.1)}.set-found-photo img{display:block;max-width:100%;max-height:330px;object-fit:contain}.set-found-photo span{color:#888}.set-found-card dl{display:grid;grid-template-columns:1fr 1fr;margin:22px 0 0;border:1px solid #dfe2e4;background:#fff}.set-found-card dl>div{padding:14px}.set-found-card dl>div+div{border-left:1px solid #dfe2e4}.set-found-card dt{font-size:10px;font-weight:800;letter-spacing:1.4px;color:#7893b2}.set-found-card dd{margin:5px 0 0;font-size:18px;font-weight:700}
 @media(max-width:850px){
   .mode-button{min-height:76px}
@@ -98,7 +99,7 @@
 @media(max-width:850px){
   .intro{padding:20px}
   .intro .tagline{font-size:19px}
-  .app-shell{padding-bottom:42px}
+  .app-shell{padding-bottom:0}
   footer.status-bar{display:flex;height:42px;min-height:42px;margin-bottom:0;padding:0 16px}
   footer.status-bar:has(.status-back){padding-left:0}
   .status-back{padding:0 14px;font-size:18px}

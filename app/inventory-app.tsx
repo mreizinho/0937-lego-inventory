@@ -191,6 +191,7 @@ export default function Home() {
         </section> : <section className="scan-panel">
           {mode === "entrada" || mode === "saida" ? selected ? <div className="set-found-screen">
             <div className="entry-keypad-title">
+              <button className="entry-title-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }} aria-label="Voltar às opções">←</button>
               <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
               <div className="entry-title-menu">
                 <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
@@ -211,6 +212,7 @@ export default function Home() {
             </article>
           </div> : <div className="entry-keypad">
             <div className="entry-keypad-title">
+              <button className="entry-title-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }} aria-label="Voltar às opções">←</button>
               <h2>{mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h2>
               <div className="entry-title-menu">
                 <button className="hamburger-button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-controls="movement-menu" aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}>
@@ -242,11 +244,6 @@ export default function Home() {
           {selected && mode !== "entrada" && mode !== "saida" && <article className="set-result"><div className="set-art" style={{ background: selected.color }}><BrickMark /><span>#{selected.code}</span></div><div className="set-copy"><p>{selected.theme} · {selected.year}</p><h3>{selected.name}</h3><div className="set-meta"><span><small>PEÇAS</small><b>{selected.pieces.toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>{selected.stock} un.</b></span><span><small>LOCAL</small><b>{selected.location}</b></span></div></div><button className={`confirm-button ${mode}`} onClick={register}>{mode === "lote" ? "Adicionar ao lote" : "Abrir ficha"} <span>→</span></button></article>}
         </section>}
       </section>
-      <footer className="status-bar">
-        {mode && <button className="status-back" onClick={() => { setMode(null); setSelected(null); setQuery(""); }}><span aria-hidden="true">←</span> VOLTAR</button>}
-        {mode !== "entrada" && mode !== "saida" && <span className="status-message"><span className="status-dot" /> <span>{status}</span></span>}
-        <b>Inventário LEGO · Comunidade 0937</b>
-      </footer>
     </main>
   );
 }
