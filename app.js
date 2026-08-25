@@ -4,6 +4,10 @@ const GOOGLE_CLIENT_ID = "903361544580-2q3vp79k7jv9moq8meincgtr3bhfrmua.apps.goo
 const SPREADSHEET_ID = "1uLDmcH1U2ayy08LkMXHKvqddYkmwUQqAmd520ilo_XI";
 const TOKEN_KEY = "googleSheetsAccessToken";
 
+function emptyMovementForm(defaults = {}) {
+  return { origin: defaults.origin || "", status: "", storage: defaults.storage || "", qty: "1", obs: "" };
+}
+
 const state = {
   mode: null,
   query: "",
@@ -11,10 +15,14 @@ const state = {
   menuOpen: false,
   loggedIn: false,
   accessToken: "",
+  userEmail: "",
   catalogRows: [],
   loginError: "",
   checkingCredentials: true,
-  movementForm: { origin: "", status: "", storage: "", qty: "1" },
+  movementForm: emptyMovementForm(),
+  movementSaving: false,
+  movementNotice: null,
+  lastMovementDefaults: { origin: "", storage: "" },
   photoMetaVisible: true,
   scannerOpen: false,
   scannerStatus: "",
@@ -28,6 +36,7 @@ let barcodeFocusTimer = null;
 let quaggaScanPending = false;
 let lastQuaggaScanAt = Number.NEGATIVE_INFINITY;
 let barcodeFrameCanvas = null;
+let movementNoticeTimer = null;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -138,8 +147,9 @@ function foundMarkup() {
       <label><span>Estado</span><input type="text" name="status" data-movement-field="status" value="${escapeHtml(state.movementForm.status)}" autocomplete="off"></label>
       <label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"></label>
       <div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1" step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>
+      <label class="obs-field"><span>Obs</span><input type="text" name="obs" data-movement-field="obs" value="${escapeHtml(state.movementForm.obs)}" autocomplete="off"></label>
     </div>
-    <div class="movement-form-actions"><button type="button" class="movement-cancel" data-action="movement-cancel">CANCELAR</button><button type="button" class="movement-ok" data-action="movement-confirm">OK</button></div>
+    <div class="movement-form-actions"><button type="button" class="movement-cancel" data-action="movement-cancel"${state.movementSaving ? " disabled" : ""}>CANCELAR</button><button type="button" class="movement-ok" data-action="movement-confirm"${state.movementSaving ? " disabled" : ""}>${state.movementSaving ? "A REGISTAR…" : "OK"}</button></div>
   </article></div></section></section>`;
 }
 
@@ -157,7 +167,8 @@ function resultMarkup(item) {
 
 function render() {
   const content = !state.mode ? optionsMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
-  document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}`;
+  const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
+  document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
 }
 
 function normalizeHeader(value) {
@@ -179,7 +190,20 @@ function findSet(code) {
   const number = value("Number") || String(row[1] ?? query);
   const filename = value("ImageFilename");
   const imageFile = filename && /\.[a-z0-9]+$/i.test(filename) ? filename : filename ? `${filename}.jpg` : "";
-  return { code: number, ean: String(row[eanColumn] ?? value("EAN")), name: value("SetName") || `Conjunto ${number}`, theme: value("Theme") || "LEGO", year: Number(value("Year") || value("YearFrom")) || 0, pieces: Number(value("Pieces")) || 0, stock: 0, location: "—", color: "#e5edf3", imageUrl: imageFile ? `https://images.brickset.com/sets/images/${imageFile}` : "" };
+  return {
+    code: number,
+    ean: String(row[eanColumn] ?? value("EAN")),
+    name: value("SetName") || `Conjunto ${number}`,
+    year: Number(value("Year") || value("YearFrom")) || 0,
+    theme: value("Theme") || "LEGO",
+    subTheme: value("SubTheme"),
+    rrp: value("DERetailPrice"),
+    pieces: Number(value("Pieces")) || 0,
+    stock: 0,
+    location: "—",
+    color: "#e5edf3",
+    imageUrl: imageFile ? `https://images.brickset.com/sets/images/${imageFile}` : "",
+  };
 }
 
 function isValidEan(value) {
@@ -197,6 +221,28 @@ function findSetByEan(ean) {
   return hasExactEan ? findSet(ean) : undefined;
 }
 
+function movementFormForMode(mode) {
+  return emptyMovementForm(mode === "entrada" ? state.lastMovementDefaults : undefined);
+}
+
+async function loadLastMovementDefaults(token) {
+  const range = encodeURIComponent("Movimentos!I2:L");
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (response.status === 401) throw new Error("AUTH_EXPIRED");
+  if (response.status === 403) throw new Error("NO_ACCESS");
+  if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
+  if (!response.ok) throw new Error(`SHEETS_ERROR_${response.status}`);
+  const rows = (await response.json()).values || [];
+  const lastRow = [...rows].reverse().find(row => String(row[0] ?? "").trim() || String(row[3] ?? "").trim());
+  state.lastMovementDefaults = {
+    origin: String(lastRow?.[0] ?? ""),
+    storage: String(lastRow?.[3] ?? ""),
+  };
+}
+
 async function loadCatalog(token) {
   const range = encodeURIComponent("BricksetSets!A1:ZZ");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -206,10 +252,106 @@ async function loadCatalog(token) {
   if (response.status === 400) throw new Error("SHEET_NOT_FOUND");
   if (!response.ok) throw new Error(`SHEETS_ERROR_${response.status}`);
   const data = await response.json();
+  const profileResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", { headers: { Authorization: `Bearer ${token}` } });
+  if (profileResponse.status === 401) throw new Error("AUTH_EXPIRED");
+  if (!profileResponse.ok) throw new Error("USERINFO_ERROR");
+  const profile = await profileResponse.json();
+  if (!profile.email) throw new Error("USER_EMAIL_MISSING");
   state.catalogRows = (data.values || []).map(row => row.map(String));
+  await loadLastMovementDefaults(token);
+  state.userEmail = String(profile.email);
   state.loggedIn = true;
   state.loginError = "";
   state.status = "Sessão iniciada · catálogo BricksetSets disponível";
+}
+
+function createMovementId() {
+  if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function showMovementNotice(message, type) {
+  if (movementNoticeTimer) window.clearTimeout(movementNoticeTimer);
+  state.movementNotice = { message, type };
+  movementNoticeTimer = window.setTimeout(() => {
+    state.movementNotice = null;
+    document.querySelector(".app-toast")?.remove();
+  }, 5000);
+}
+
+function createMovementTimestamp() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("pt-PT", {
+    timeZone: "Europe/Lisbon",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date()).filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+  return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
+async function getAvailableStock(setNumber) {
+  const range = encodeURIComponent("Movimentos!D2:M");
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
+    headers: { Authorization: `Bearer ${state.accessToken}` },
+    cache: "no-store",
+  });
+  if (response.status === 401) throw new Error("AUTH_EXPIRED");
+  if (response.status === 403) throw new Error("READ_DENIED");
+  if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
+  if (!response.ok) throw new Error(`SHEETS_READ_ERROR_${response.status}`);
+  const data = await response.json();
+  return (data.values || []).reduce((stock, row) => {
+    if (String(row[0] ?? "").trim() !== String(setNumber).trim()) return stock;
+    const quantity = Number(String(row[9] ?? "0").replace(",", "."));
+    return stock + (Number.isFinite(quantity) ? quantity : 0);
+  }, 0);
+}
+
+async function appendMovement() {
+  if (!state.selected || !state.accessToken || !state.userEmail) throw new Error("NOT_AUTHENTICATED");
+  const requestedQuantity = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
+  if (state.mode === "saida") {
+    const availableStock = await getAvailableStock(state.selected.code);
+    if (requestedQuantity > availableStock) {
+      const error = new Error("INSUFFICIENT_STOCK");
+      error.availableStock = availableStock;
+      throw error;
+    }
+  }
+  const quantity = requestedQuantity * (state.mode === "saida" ? -1 : 1);
+  const row = [
+    createMovementId(),
+    createMovementTimestamp(),
+    state.selected.ean,
+    state.selected.code,
+    state.selected.name,
+    state.selected.year,
+    state.selected.theme,
+    state.selected.subTheme || "",
+    state.movementForm.origin.trim(),
+    state.selected.imageUrl,
+    state.movementForm.status.trim(),
+    state.movementForm.storage.trim(),
+    quantity,
+    state.userEmail,
+    state.selected.rrp || "",
+    state.movementForm.obs.trim(),
+  ];
+  const range = encodeURIComponent("Movimentos!A:P");
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ majorDimension: "ROWS", values: [row] }),
+  });
+  if (response.status === 401) throw new Error("AUTH_EXPIRED");
+  if (response.status === 403) throw new Error("WRITE_DENIED");
+  if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
+  if (!response.ok) throw new Error(`SHEETS_WRITE_ERROR_${response.status}`);
+  return response.json();
 }
 
 function loginWithGoogle() {
@@ -221,7 +363,7 @@ function loginWithGoogle() {
     render();
     return;
   }
-  const client = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: "https://www.googleapis.com/auth/spreadsheets", callback: async response => {
+  const client = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: "openid email https://www.googleapis.com/auth/spreadsheets", callback: async response => {
     if (!response.access_token) {
       state.checkingCredentials = false;
       state.loginError = `Não foi possível iniciar sessão com Google${response.error ? ` (${response.error})` : ""}.`;
@@ -235,7 +377,7 @@ function loginWithGoogle() {
       state.accessToken = response.access_token;
       sessionStorage.setItem(TOKEN_KEY, response.access_token);
     } catch (error) {
-      const messages = { NO_ACCESS: "Esta conta Google não tem acesso ao inventário.", AUTH_EXPIRED: "A autorização Google expirou. Inicia sessão novamente.", SPREADSHEET_NOT_FOUND: "O spreadsheet do inventário não foi encontrado.", SHEET_NOT_FOUND: "A folha BricksetSets não foi encontrada." };
+      const messages = { NO_ACCESS: "Esta conta Google não tem acesso ao inventário.", AUTH_EXPIRED: "A autorização Google expirou. Inicia sessão novamente.", SPREADSHEET_NOT_FOUND: "O spreadsheet do inventário não foi encontrado.", SHEET_NOT_FOUND: "A folha BricksetSets não foi encontrada.", MOVEMENTS_SHEET_NOT_FOUND: "A folha Movimentos não foi encontrada.", USERINFO_ERROR: "Não foi possível obter o email da conta Google.", USER_EMAIL_MISSING: "A conta Google não disponibilizou um endereço de email." };
       state.loggedIn = false;
       state.catalogRows = [];
       state.loginError = messages[error.message] || `Não foi possível consultar o Google Sheets (${error.message}).`;
@@ -249,7 +391,7 @@ function loginWithGoogle() {
 function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
   sessionStorage.removeItem(TOKEN_KEY);
-  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: { origin: "", status: "", storage: "", qty: "1" }, status: "Sessão terminada" });
+  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, status: "Sessão terminada" });
   render();
 }
 
@@ -258,6 +400,13 @@ function lookup() {
   state.selected = found || null;
   state.photoMetaVisible = true;
   state.status = found ? `Conjunto ${found.code} encontrado no catálogo` : state.query ? "Código não encontrado. Confirma o número ou EAN." : "Digite ou leia um código para continuar.";
+  if (!found && state.query) {
+    showMovementNotice(`Código ${state.query} não encontrado.`, "error");
+  } else {
+    if (movementNoticeTimer) window.clearTimeout(movementNoticeTimer);
+    movementNoticeTimer = null;
+    state.movementNotice = null;
+  }
   render();
 }
 
@@ -481,14 +630,14 @@ async function openBarcodeScanner() {
   }
 }
 
-document.addEventListener("click", event => {
+document.addEventListener("click", async event => {
   const modeButton = event.target.closest("[data-mode]");
   if (modeButton && !modeButton.disabled) {
     state.mode = modeButton.dataset.mode;
     state.query = "";
     state.selected = null;
     state.menuOpen = false;
-    state.movementForm = { origin: "", status: "", storage: "", qty: "1" };
+    state.movementForm = movementFormForMode(state.mode);
     state.photoMetaVisible = true;
     render();
     return;
@@ -521,22 +670,52 @@ document.addEventListener("click", event => {
     return;
   }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
-  if (action === "back") Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: { origin: "", status: "", storage: "", qty: "1" } });
+  if (action === "back") Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null });
   if (action === "delete") { state.query = state.query.slice(0, -1); state.selected = null; }
   if (action === "clear") Object.assign(state, { query: "", selected: null });
   if (action === "movement-cancel") {
-    Object.assign(state, { query: "", selected: null, movementForm: { origin: "", status: "", storage: "", qty: "1" }, photoMetaVisible: true });
+    Object.assign(state, { query: "", selected: null, movementForm: movementFormForMode(state.mode), movementNotice: null, photoMetaVisible: true });
     render();
     return;
   }
   if (action === "movement-confirm") {
+    if (state.movementSaving) return;
     const requiredFields = [...document.querySelectorAll(".movement-fields [required]")];
     const invalidField = requiredFields.find(field => !field.checkValidity());
     if (invalidField) {
       invalidField.reportValidity();
       return;
     }
-    state.status = `${state.mode === "entrada" ? "Entrada" : "Saída"} pronta para registar no sheet Movimentos.`;
+    const setCode = state.selected.code;
+    const movementName = state.mode === "entrada" ? "Entrada" : "Saída";
+    const submittedDefaults = { origin: state.movementForm.origin.trim(), storage: state.movementForm.storage.trim() };
+    state.movementSaving = true;
+    state.movementNotice = null;
+    render();
+    try {
+      await appendMovement();
+      state.lastMovementDefaults = submittedDefaults;
+      Object.assign(state, { query: "", selected: null, movementForm: movementFormForMode(state.mode), movementSaving: false, photoMetaVisible: true, status: `${movementName} do conjunto ${setCode} registada em Movimentos.` });
+      showMovementNotice(`${movementName} registada com sucesso.`, "success");
+    } catch (error) {
+      const messages = {
+        NOT_AUTHENTICATED: "Inicia novamente a sessão Google antes de registar o movimento.",
+        AUTH_EXPIRED: "A sessão Google expirou. Inicia sessão novamente.",
+        READ_DENIED: "Esta conta não tem permissão para consultar os movimentos e validar o stock.",
+        WRITE_DENIED: "Esta conta não tem permissão para escrever no sheet Movimentos.",
+        MOVEMENTS_SHEET_NOT_FOUND: "Não foi possível encontrar o sheet Movimentos.",
+      };
+      if (error.message === "AUTH_EXPIRED") {
+        sessionStorage.removeItem(TOKEN_KEY);
+        Object.assign(state, { loggedIn: false, accessToken: "", userEmail: "", loginError: messages.AUTH_EXPIRED });
+      }
+      state.movementSaving = false;
+      const message = error.message === "INSUFFICIENT_STOCK"
+        ? `Stock insuficiente. Disponível: ${Math.max(0, error.availableStock)}.`
+        : messages[error.message] || "Não foi possível registar o movimento. Tenta novamente.";
+      showMovementNotice(message, "error");
+    }
+    render();
     return;
   }
   if (action === "lookup") { lookup(); return; }
@@ -569,6 +748,33 @@ document.addEventListener("keydown", event => {
     return;
   }
   if (event.target.id === "lego-code" && event.key === "Enter") lookup();
+  const keypadActive = (state.mode === "entrada" || state.mode === "saida") && !state.selected && !state.scannerOpen;
+  if (!keypadActive || event.ctrlKey || event.metaKey || event.altKey) return;
+  if (/^\d$/.test(event.key)) {
+    event.preventDefault();
+    state.query += event.key;
+    const display = document.querySelector("#entry-code");
+    if (display) display.value = state.query;
+    return;
+  }
+  if (event.key === "Backspace") {
+    event.preventDefault();
+    state.query = state.query.slice(0, -1);
+    const display = document.querySelector("#entry-code");
+    if (display) display.value = state.query;
+    return;
+  }
+  if (event.key === "Delete") {
+    event.preventDefault();
+    state.query = "";
+    const display = document.querySelector("#entry-code");
+    if (display) display.value = "";
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    lookup();
+  }
 });
 
 document.addEventListener("visibilitychange", () => {
