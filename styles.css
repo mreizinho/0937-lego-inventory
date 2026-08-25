@@ -174,7 +174,7 @@ html,body{height:100%;overflow:hidden}
 @media(max-width:850px){.location-allocation-row.movement-fields+.location-allocation-row.movement-fields{margin-top:11px}}
 .desktop-tabs{height:100%;margin-left:auto;display:flex;align-items:flex-end}
 .desktop-tab{height:42px;padding:0 12px;border:0;background:transparent;color:#d6d6d6;font-size:16px;font-weight:400;letter-spacing:0;white-space:nowrap;cursor:pointer}
-.desktop-tab:hover,.desktop-tab:focus-visible{background:rgba(255,255,255,.08);color:#fff;outline:0}
+.desktop-tab:hover,.desktop-tab:focus-visible{background:#747677;color:#fff;outline:0}
 .desktop-tab.active,.desktop-tab.active:hover,.desktop-tab.active:focus-visible{background:#fff;color:#444647}
 .desktop-session{margin-left:0;color:#d6d6d6}
 @media(min-width:851px){.header-menu{display:none}.movement-header{align-items:flex-start}.movement-header h1{position:absolute;top:14px}.movement-header-back{top:24px}.movement-header .desktop-tabs{position:absolute;right:max(5vw,24px);bottom:0;height:42px}}
