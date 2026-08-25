@@ -3,6 +3,7 @@
 const GOOGLE_CLIENT_ID = "903361544580-2q3vp79k7jv9moq8meincgtr3bhfrmua.apps.googleusercontent.com";
 const SPREADSHEET_ID = "1uLDmcH1U2ayy08LkMXHKvqddYkmwUQqAmd520ilo_XI";
 const TOKEN_KEY = "googleSheetsAccessToken";
+const APP_HISTORY_ID = "0937-lego-inventory";
 
 function emptyMovementForm(defaults = {}) {
   return { origin: defaults.origin || "", storage: defaults.storage || "", qty: "1", obs: "" };
@@ -28,6 +29,15 @@ const state = {
   scannerStatus: "",
   status: "Catálogo sincronizado há 2 min",
 };
+
+function writeAppHistory(step, replace = false) {
+  const historyState = { app: APP_HISTORY_ID, step, mode: state.mode, query: state.query };
+  window.history[replace ? "replaceState" : "pushState"](historyState, "", window.location.href);
+}
+
+function isCurrentHistoryStep(step) {
+  return window.history.state?.app === APP_HISTORY_ID && window.history.state.step === step;
+}
 
 let barcodeStream = null;
 let barcodeScanTimer = null;
@@ -446,6 +456,7 @@ async function lookup() {
   if (movementNoticeTimer) window.clearTimeout(movementNoticeTimer);
   movementNoticeTimer = null;
   state.movementNotice = null;
+  if (!isCurrentHistoryStep("found")) writeAppHistory("found");
   render();
 }
 
@@ -564,10 +575,11 @@ function closeBarcodeScanner() {
   document.querySelector(".camera-scanner")?.remove();
 }
 
-async function openBarcodeScanner() {
+async function openBarcodeScanner(addHistory = true) {
   if (state.scannerOpen) return;
   state.scannerOpen = true;
   state.scannerStatus = "A preparar a câmara…";
+  if (addHistory && !isCurrentHistoryStep("scanner")) writeAppHistory("scanner");
   document.querySelector("#app")?.insertAdjacentHTML("beforeend", scannerMarkup());
 
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -642,6 +654,7 @@ async function openBarcodeScanner() {
               stopBarcodeCamera();
               state.scannerOpen = false;
               state.scannerStatus = "";
+              writeAppHistory("found", true);
               render();
               return;
             }
@@ -678,6 +691,7 @@ document.addEventListener("click", async event => {
     state.menuOpen = false;
     state.movementForm = movementFormForMode(state.mode);
     state.photoMetaVisible = true;
+    writeAppHistory("mode");
     render();
     return;
   }
@@ -691,7 +705,7 @@ document.addEventListener("click", async event => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
   if (action === "scanner") { openBarcodeScanner(); return; }
-  if (action === "close-scanner") { closeBarcodeScanner(); return; }
+  if (action === "close-scanner") { window.history.back(); return; }
   if (action === "focus-camera") { focusBarcodeCamera(event); return; }
   if (action === "toggle-photo-meta") {
     state.photoMetaVisible = !state.photoMetaVisible;
@@ -709,12 +723,15 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
-  if (action === "back") Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null });
+  if (action === "back") {
+    if (window.history.state?.app === APP_HISTORY_ID) window.history.back();
+    else Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null });
+    return;
+  }
   if (action === "delete") { state.query = state.query.slice(0, -1); state.selected = null; }
   if (action === "clear") Object.assign(state, { query: "", selected: null });
   if (action === "movement-cancel") {
-    Object.assign(state, { query: "", selected: null, movementForm: movementFormForMode(state.mode), movementNotice: null, photoMetaVisible: true });
-    render();
+    window.history.back();
     return;
   }
   if (action === "movement-confirm") {
@@ -736,6 +753,10 @@ document.addEventListener("click", async event => {
       if (state.mode === "entrada") state.lastMovementDefaults = submittedDefaults;
       Object.assign(state, { query: "", selected: null, movementForm: movementFormForMode(state.mode), movementSaving: false, photoMetaVisible: true, status: `${movementName} do conjunto ${setCode} registada em Movimentos.` });
       showMovementNotice(`${movementName} registada com sucesso.`, "success");
+      if (isCurrentHistoryStep("found")) {
+        window.history.back();
+        return;
+      }
     } catch (error) {
       const messages = {
         NOT_AUTHENTICATED: "Inicia novamente a sessão Google antes de registar o movimento.",
@@ -793,7 +814,7 @@ document.addEventListener("input", event => {
 
 document.addEventListener("keydown", event => {
   if (state.scannerOpen && event.key === "Escape") {
-    closeBarcodeScanner();
+    window.history.back();
     return;
   }
   if (event.target.id === "lego-code" && event.key === "Enter") lookup();
@@ -827,10 +848,36 @@ document.addEventListener("keydown", event => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && state.scannerOpen) closeBarcodeScanner();
+  if (document.hidden && state.scannerOpen) {
+    closeBarcodeScanner();
+    writeAppHistory("mode", true);
+  }
 });
 
 window.addEventListener("beforeunload", stopBarcodeCamera);
+
+window.addEventListener("popstate", event => {
+  const historyState = event.state;
+  if (historyState?.app !== APP_HISTORY_ID) return;
+  if (state.scannerOpen) closeBarcodeScanner();
+  state.menuOpen = false;
+
+  if (historyState.step === "home") {
+    Object.assign(state, { mode: null, query: "", selected: null, movementForm: emptyMovementForm(), movementNotice: null, photoMetaVisible: true });
+    render();
+    return;
+  }
+
+  state.mode = historyState.mode;
+  state.query = historyState.query || "";
+  state.selected = null;
+  state.movementForm = movementFormForMode(state.mode);
+  state.photoMetaVisible = true;
+
+  if (historyState.step === "found") state.selected = findSet(state.query) || null;
+  render();
+  if (historyState.step === "scanner") openBarcodeScanner(false);
+});
 
 async function restoreSession() {
   render();
@@ -851,4 +898,5 @@ async function restoreSession() {
   render();
 }
 
+writeAppHistory("home", true);
 restoreSession();
