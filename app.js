@@ -112,6 +112,7 @@ function menuMarkup(id) {
     ? `<button class="google-login signed-in" data-action="logout"><span>↪</span><span><strong>Terminar sessão</strong><small>Sessão Google ativa</small></span></button>`
     : `<button class="google-login" data-action="login"><span>${icons.google}</span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>`;
   return `<div class="menu-popover" id="${id}">${login}
+    ${menuItem("⌂", "blue", "Acções", "Voltar ao ecrã inicial", "home")}
     <p class="menu-group-title">BASE DE DADOS</p>
     ${menuItem("▦", "green", "Abrir Google Sheets", "Ver tabela completa", "show-sheets")}
     ${menuItem("↻", "blue", "Atualizar Catálogos", "Sync via API Brickset")}
@@ -870,7 +871,11 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "home") {
-    if (!state.mode) return;
+    if (!state.mode) {
+      state.menuOpen = false;
+      render();
+      return;
+    }
     Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
     writeAppHistory("home");
     render();
