@@ -125,11 +125,25 @@ function menuItem(symbol, color, title, description, action = "noop") {
   return `<button class="menu-action" data-action="${action}"><span class="menu-action-icon ${color}">${symbol}</span><span><strong>${title}</strong><small>${description}</small></span><b class="menu-chevron">›</b></button>`;
 }
 
+function desktopTabsMarkup() {
+  const sessionAction = state.loggedIn ? "logout" : "login";
+  const sessionLabel = state.loggedIn ? "SAIR" : "ENTRAR";
+  return `<nav class="desktop-tabs" aria-label="Navegação principal">
+    <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>ACÇÕES</button>
+    <button type="button" class="desktop-tab" data-action="open-sheet">GOOGLE SHEETS</button>
+    <button type="button" class="desktop-tab" data-action="noop">ATUALIZAR</button>
+    <button type="button" class="desktop-tab" data-action="noop">INVENTÁRIO</button>
+    <button type="button" class="desktop-tab" data-action="noop">CONSULTAS</button>
+    <button type="button" class="desktop-tab desktop-session" data-action="${sessionAction}">${sessionLabel}</button>
+  </nav>`;
+}
+
 function headerMarkup() {
   if (state.mode === "entrada" || state.mode === "saida") {
     return `<header class="masthead movement-header">
       <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
       <h1>${state.mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h1>
+      ${desktopTabsMarkup()}
       <div class="header-menu movement-header-menu">
         <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="movement-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
         ${state.menuOpen ? menuMarkup("movement-menu") : ""}
@@ -140,6 +154,7 @@ function headerMarkup() {
     <a class="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
       <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg"><img src="public/comunidade-0937.svg" alt="Comunidade 0937"></picture>
     </a>
+    ${desktopTabsMarkup()}
     <div class="header-menu">
       <button class="header-search-button" aria-label="Pesquisar">${icons.search}</button>
       <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="main-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
@@ -834,6 +849,13 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
+  if (action === "home") {
+    if (!state.mode) return;
+    Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
+    writeAppHistory("home");
+    render();
+    return;
+  }
   if (action === "back") {
     if (window.history.state?.app === APP_HISTORY_ID) window.history.back();
     else Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null });

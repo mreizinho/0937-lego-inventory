@@ -172,3 +172,10 @@ html,body{height:100%;overflow:hidden}
 .location-allocation-row.movement-fields{height:auto;margin-top:0;align-items:stretch}
 .location-allocation-row.movement-fields+.location-allocation-row.movement-fields{margin-top:14px}
 @media(max-width:850px){.location-allocation-row.movement-fields+.location-allocation-row.movement-fields{margin-top:11px}}
+.desktop-tabs{height:100%;margin-left:auto;display:flex;align-items:flex-end}
+.desktop-tab{height:42px;padding:0 11px;border:0;border-bottom:4px solid transparent;background:transparent;color:#d6d6d6;font-size:11px;font-weight:700;letter-spacing:.25px;white-space:nowrap;cursor:pointer}
+.desktop-tab:hover,.desktop-tab:focus-visible{background:rgba(255,255,255,.1);color:#fff;outline:0}
+.desktop-tab.active{border-bottom-color:var(--orange);background:#fff;color:#444647}
+.desktop-session{margin-left:5px;color:#fff}
+@media(min-width:851px){.header-menu{display:none}.movement-header{align-items:flex-start}.movement-header h1{position:absolute;top:14px}.movement-header-back{top:24px}.movement-header .desktop-tabs{position:absolute;right:max(5vw,24px);bottom:0;height:42px}}
+@media(max-width:850px){.desktop-tabs{display:none}}
