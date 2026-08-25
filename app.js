@@ -5,7 +5,7 @@ const SPREADSHEET_ID = "1uLDmcH1U2ayy08LkMXHKvqddYkmwUQqAmd520ilo_XI";
 const TOKEN_KEY = "googleSheetsAccessToken";
 
 function emptyMovementForm(defaults = {}) {
-  return { origin: defaults.origin || "", status: "", storage: defaults.storage || "", qty: "1", obs: "" };
+  return { origin: defaults.origin || "", storage: defaults.storage || "", qty: "1", obs: "" };
 }
 
 const state = {
@@ -139,15 +139,20 @@ function scannerMarkup() {
 
 function foundMarkup() {
   const item = state.selected;
+  const memberSelected = state.mode === "saida" && state.movementForm.origin === "Membro";
+  const obsRequired = memberSelected || (state.mode === "saida" && state.movementForm.origin === "Outro");
+  const originField = state.mode === "saida"
+    ? `<label><span>Destino <b aria-hidden="true">*</b></span><div class="select-control"><select name="origin" data-movement-field="origin" required><option value=""${state.movementForm.origin ? "" : " selected"}>Selecionar…</option>${["Espólio", "Membro", "Peças"].map(option => `<option value="${option}"${state.movementForm.origin === option ? " selected" : ""}>${option}</option>`).join("")}<option disabled>──────────</option><option value="Outro"${state.movementForm.origin === "Outro" ? " selected" : ""}>Outro</option></select><span class="select-arrow" aria-hidden="true">▾</span></div></label>`
+    : `<label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>`;
+  const storageField = state.mode === "saida" ? "" : `<label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"></label>`;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
     <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
-    <div class="movement-fields">
-      <label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>
-      <label><span>Estado</span><input type="text" name="status" data-movement-field="status" value="${escapeHtml(state.movementForm.status)}" autocomplete="off"></label>
-      <label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"></label>
+    <div class="movement-fields${state.mode === "saida" ? " no-storage" : ""}">
+      ${originField}
+      <label><span><span id="movement-obs-label">${memberSelected ? "Nome do Membro" : "Obs"}</span> <b id="movement-obs-required" aria-hidden="true"${obsRequired ? "" : " hidden"}>*</b></span><input id="movement-obs" type="text" name="obs" data-movement-field="obs" value="${escapeHtml(state.movementForm.obs)}"${obsRequired ? " required" : ""} autocomplete="off"></label>
+      ${storageField}
       <div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1" step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>
-      <label class="obs-field"><span>Obs</span><input type="text" name="obs" data-movement-field="obs" value="${escapeHtml(state.movementForm.obs)}" autocomplete="off"></label>
     </div>
     <div class="movement-form-actions"><button type="button" class="movement-cancel" data-action="movement-cancel"${state.movementSaving ? " disabled" : ""}>CANCELAR</button><button type="button" class="movement-ok" data-action="movement-confirm"${state.movementSaving ? " disabled" : ""}>${state.movementSaving ? "A REGISTAR…" : "OK"}</button></div>
   </article></div></section></section>`;
@@ -226,7 +231,7 @@ function movementFormForMode(mode) {
 }
 
 async function loadLastMovementDefaults(token) {
-  const range = encodeURIComponent("Movimentos!I2:L");
+  const range = encodeURIComponent("Movimentos!I2:K");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
@@ -236,10 +241,10 @@ async function loadLastMovementDefaults(token) {
   if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
   if (!response.ok) throw new Error(`SHEETS_ERROR_${response.status}`);
   const rows = (await response.json()).values || [];
-  const lastRow = [...rows].reverse().find(row => String(row[0] ?? "").trim() || String(row[3] ?? "").trim());
+  const lastRow = [...rows].reverse().find(row => String(row[0] ?? "").trim() || String(row[2] ?? "").trim());
   state.lastMovementDefaults = {
     origin: String(lastRow?.[0] ?? ""),
-    storage: String(lastRow?.[3] ?? ""),
+    storage: String(lastRow?.[2] ?? ""),
   };
 }
 
@@ -294,7 +299,7 @@ function createMovementTimestamp() {
 }
 
 async function getAvailableStock(setNumber) {
-  const range = encodeURIComponent("Movimentos!D2:M");
+  const range = encodeURIComponent("Movimentos!D2:L");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
     headers: { Authorization: `Bearer ${state.accessToken}` },
     cache: "no-store",
@@ -306,7 +311,7 @@ async function getAvailableStock(setNumber) {
   const data = await response.json();
   return (data.values || []).reduce((stock, row) => {
     if (String(row[0] ?? "").trim() !== String(setNumber).trim()) return stock;
-    const quantity = Number(String(row[9] ?? "0").replace(",", "."));
+    const quantity = Number(String(row[8] ?? "0").replace(",", "."));
     return stock + (Number.isFinite(quantity) ? quantity : 0);
   }, 0);
 }
@@ -334,14 +339,13 @@ async function appendMovement() {
     state.selected.subTheme || "",
     state.movementForm.origin.trim(),
     state.selected.imageUrl,
-    state.movementForm.status.trim(),
     state.movementForm.storage.trim(),
     quantity,
     state.userEmail,
     state.selected.rrp || "",
     state.movementForm.obs.trim(),
   ];
-  const range = encodeURIComponent("Movimentos!A:P");
+  const range = encodeURIComponent("Movimentos!A:O");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
     method: "POST",
     headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
@@ -395,18 +399,50 @@ function logoutGoogle() {
   render();
 }
 
-function lookup() {
+async function lookup() {
   const found = findSet(state.query);
-  state.selected = found || null;
   state.photoMetaVisible = true;
-  state.status = found ? `Conjunto ${found.code} encontrado no catálogo` : state.query ? "Código não encontrado. Confirma o número ou EAN." : "Digite ou leia um código para continuar.";
   if (!found && state.query) {
+    state.selected = null;
+    state.status = "Código não encontrado. Confirma o número ou EAN.";
     showMovementNotice(`Código ${state.query} não encontrado.`, "error");
-  } else {
-    if (movementNoticeTimer) window.clearTimeout(movementNoticeTimer);
-    movementNoticeTimer = null;
-    state.movementNotice = null;
+    render();
+    return;
   }
+  if (!found) {
+    state.selected = null;
+    state.status = "Digite ou leia um código para continuar.";
+    render();
+    return;
+  }
+  if (state.mode === "saida") {
+    try {
+      const availableStock = await getAvailableStock(found.code);
+      if (availableStock <= 0) {
+        state.selected = null;
+        state.status = `O conjunto ${found.code} não tem stock disponível.`;
+        showMovementNotice(`Não existe stock disponível para o conjunto ${found.code}.`, "error");
+        render();
+        return;
+      }
+    } catch (error) {
+      state.selected = null;
+      state.status = "Não foi possível verificar o stock.";
+      const messages = {
+        AUTH_EXPIRED: "A sessão Google expirou. Inicia sessão novamente.",
+        READ_DENIED: "Esta conta não tem permissão para consultar o stock.",
+        MOVEMENTS_SHEET_NOT_FOUND: "Não foi possível encontrar o sheet Movimentos.",
+      };
+      showMovementNotice(messages[error.message] || "Não foi possível verificar o stock. Tenta novamente.", "error");
+      render();
+      return;
+    }
+  }
+  state.selected = found;
+  state.status = `Conjunto ${found.code} encontrado no catálogo`;
+  if (movementNoticeTimer) window.clearTimeout(movementNoticeTimer);
+  movementNoticeTimer = null;
+  state.movementNotice = null;
   render();
 }
 
@@ -734,6 +770,16 @@ document.addEventListener("input", event => {
       return;
     }
     state.movementForm[movementField] = event.target.value;
+    if (movementField === "origin" && state.mode === "saida") {
+      const memberSelected = event.target.value === "Membro";
+      const obsRequired = memberSelected || event.target.value === "Outro";
+      const obsInput = document.querySelector("#movement-obs");
+      const obsLabel = document.querySelector("#movement-obs-label");
+      const requiredMark = document.querySelector("#movement-obs-required");
+      if (obsInput) obsInput.required = obsRequired;
+      if (obsLabel) obsLabel.textContent = memberSelected ? "Nome do Membro" : "Obs";
+      if (requiredMark) requiredMark.hidden = !obsRequired;
+    }
     return;
   }
   if (event.target.id !== "lego-code") return;
