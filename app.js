@@ -177,10 +177,10 @@ function optionsMarkup() {
   const loginHelp = state.loginError ? "Toca aqui para tentar novamente." : state.checkingCredentials ? "A confirmar o acesso ao Google Sheets." : "As opções ficam disponíveis após o login com Google.";
   const login = state.loggedIn ? "" : `<button type="button" class="login-required ${state.loginError ? "has-error" : ""}" data-action="login">${icons.lock}<span><strong>${escapeHtml(loginTitle)}</strong><small>${loginHelp}</small></span></button>`;
   return `<section class="workspace sheets-page actions-page" id="inventario">
-    <p class="actions-tagline">O que queres fazer hoje?</p>
     <article class="sheets-explainer actions-explainer">
     <div class="sheets-copy actions-copy">
       <p class="sheets-eyebrow actions-eyebrow">ACÇÕES</p>
+      <p class="actions-tagline">O que queres fazer hoje?</p>
       ${login}
       <div class="options-grid">
         ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
