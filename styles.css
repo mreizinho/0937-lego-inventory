@@ -172,6 +172,7 @@ html,body{height:100%;overflow:hidden}
 .location-allocation-row.movement-fields{height:auto;margin-top:0;align-items:stretch}
 .location-allocation-row.movement-fields+.location-allocation-row.movement-fields{margin-top:14px}
 @media(max-width:850px){.location-allocation-row.movement-fields+.location-allocation-row.movement-fields{margin-top:11px}}
+.legal-links{margin:16px 0 0;text-align:center}.legal-links a{color:#66727a;font-size:12px;text-decoration:none}.legal-links a:hover,.legal-links a:focus-visible{color:#335f87;text-decoration:underline;outline:0}
 .desktop-tabs{height:100%;margin-left:auto;display:flex;align-items:flex-end}
 .desktop-tab{height:42px;padding:0 12px;border:0;background:transparent;color:#d6d6d6;font-size:16px;font-weight:400;letter-spacing:0;white-space:nowrap;cursor:pointer}
 .desktop-tab:hover,.desktop-tab:focus-visible{background:#747677;color:#fff;outline:0}

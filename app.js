@@ -181,7 +181,7 @@ function optionsMarkup() {
       ${optionCard("saida", "Saída", "Registar set enviado", "saida")}
       ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "lote")}
       ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "consultar")}
-    </div></section></section>`;
+    </div><p class="legal-links"><a href="privacy.html">Política de Privacidade</a></p></section></section>`;
 }
 
 function googleSheetsMarkup() {
