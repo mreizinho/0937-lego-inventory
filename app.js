@@ -2,7 +2,7 @@
 
 const GOOGLE_CLIENT_ID = "903361544580-2q3vp79k7jv9moq8meincgtr3bhfrmua.apps.googleusercontent.com";
 const SPREADSHEET_ID = "1uLDmcH1U2ayy08LkMXHKvqddYkmwUQqAmd520ilo_XI";
-const APPS_SCRIPT_ID = "1gqjSxThhMeulegtVRiQ1otHLuD1LMUpiDXqQEtMOaftNVYEmhVSdTxVn";
+const APPS_SCRIPT_ID = "AKfycbylP4b2SrjUHjHZhFdQAOkda65AXJTS8tRiYASjQuB12qaMvS3DsJIE_P1mC8eexdC_Aw";
 const GOOGLE_OAUTH_SCOPE = "openid email https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/script.external_request";
 const TOKEN_KEY = "googleSheetsAccessToken";
 const TOKEN_SCOPE_KEY = "googleSheetsAccessTokenScope";
