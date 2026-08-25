@@ -2,7 +2,10 @@
 
 const GOOGLE_CLIENT_ID = "903361544580-2q3vp79k7jv9moq8meincgtr3bhfrmua.apps.googleusercontent.com";
 const SPREADSHEET_ID = "1uLDmcH1U2ayy08LkMXHKvqddYkmwUQqAmd520ilo_XI";
+const APPS_SCRIPT_ID = "1gqjSxThhMeulegtVRiQ1otHLuD1LMUpiDXqQEtMOaftNVYEmhVSdTxVn";
+const GOOGLE_OAUTH_SCOPE = "openid email https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/script.external_request";
 const TOKEN_KEY = "googleSheetsAccessToken";
+const TOKEN_SCOPE_KEY = "googleSheetsAccessTokenScope";
 const APP_HISTORY_ID = "0937-lego-inventory";
 
 function emptyMovementForm(defaults = {}) {
@@ -23,6 +26,7 @@ const state = {
   checkingCredentials: true,
   movementForm: emptyMovementForm(),
   movementSaving: false,
+  catalogUpdating: false,
   movementNotice: null,
   lastMovementDefaults: { origin: "", storage: "" },
   storageOptions: [],
@@ -200,14 +204,17 @@ function bricksetLastUpdated() {
 }
 
 function bricksetUpdateMarkup() {
+  const updateValue = state.catalogUpdating
+    ? `Em execução<span class="update-running-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>`
+    : escapeHtml(bricksetLastUpdated());
   return `<section class="workspace sheets-page update-page"><article class="sheets-explainer">
     <div class="sheets-visual update-visual"><img src="public/brickset.png" alt="Logótipo Brickset"></div>
     <div class="sheets-copy update-copy">
       <p class="sheets-eyebrow update-eyebrow">CATÁLOGO</p>
       <h2>Actualizar a base de dados Brickset</h2>
-      <div class="update-date"><strong>${escapeHtml(bricksetLastUpdated())}</strong><span>Última actualização</span></div>
+      <div class="update-date"><strong class="${state.catalogUpdating ? "is-running" : ""}" aria-live="polite">${updateValue}</strong><span>Última actualização</span></div>
       <p>A nossa App utiliza a Base de Dados do Brickset. Se um set for muito recente e não for encontrado na pesquisa, devemos actualizar a informação dos sets existentes, carregando no botão abaixo:</p>
-      <button type="button" class="sheets-open-button update-button" disabled>ACTUALIZAR <span aria-hidden="true">↻</span></button>
+      <button type="button" class="sheets-open-button update-button" data-action="run-brickset-update"${state.catalogUpdating ? " disabled" : ""}>ACTUALIZAR <span aria-hidden="true">↻</span></button>
     </div>
   </article></section>`;
 }
@@ -393,6 +400,25 @@ async function loadCatalog(token) {
   state.status = "Sessão iniciada · catálogo BricksetSets disponível";
 }
 
+async function runBricksetImport() {
+  const response = await fetch(`https://script.googleapis.com/v1/scripts/${APPS_SCRIPT_ID}:run`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ function: "importBricksetSets" }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (response.status === 401) throw new Error("AUTH_EXPIRED");
+  if (response.status === 403) throw new Error("SCRIPT_ACCESS_DENIED");
+  if (response.status === 404) throw new Error("SCRIPT_NOT_FOUND");
+  if (!response.ok) throw new Error(`SCRIPT_API_ERROR_${response.status}`);
+  if (result.error) {
+    const scriptError = new Error("SCRIPT_EXECUTION_FAILED");
+    scriptError.details = result.error.details?.find(detail => detail.errorMessage)?.errorMessage || result.error.message || "";
+    throw scriptError;
+  }
+  await loadCatalog(state.accessToken);
+}
+
 function createMovementId() {
   if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -510,7 +536,7 @@ function loginWithGoogle() {
     render();
     return;
   }
-  const client = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: "openid email https://www.googleapis.com/auth/spreadsheets", callback: async response => {
+  const client = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: GOOGLE_OAUTH_SCOPE, callback: async response => {
     if (!response.access_token) {
       state.checkingCredentials = false;
       state.loginError = `Não foi possível iniciar sessão com Google${response.error ? ` (${response.error})` : ""}.`;
@@ -523,6 +549,7 @@ function loginWithGoogle() {
       await loadCatalog(response.access_token);
       state.accessToken = response.access_token;
       sessionStorage.setItem(TOKEN_KEY, response.access_token);
+      sessionStorage.setItem(TOKEN_SCOPE_KEY, GOOGLE_OAUTH_SCOPE);
     } catch (error) {
       const messages = { NO_ACCESS: "Esta conta Google não tem acesso ao inventário.", AUTH_EXPIRED: "A autorização Google expirou. Inicia sessão novamente.", SPREADSHEET_NOT_FOUND: "O spreadsheet do inventário não foi encontrado.", SHEET_NOT_FOUND: "A folha BricksetSets não foi encontrada.", MOVEMENTS_SHEET_NOT_FOUND: "A folha Movimentos não foi encontrada.", USERINFO_ERROR: "Não foi possível obter o email da conta Google.", USER_EMAIL_MISSING: "A conta Google não disponibilizou um endereço de email." };
       state.loggedIn = false;
@@ -538,7 +565,8 @@ function loginWithGoogle() {
 function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
   sessionStorage.removeItem(TOKEN_KEY);
-  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, storageOptions: [], locationStock: [], status: "Sessão terminada" });
+  sessionStorage.removeItem(TOKEN_SCOPE_KEY);
+  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, catalogUpdating: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, storageOptions: [], locationStock: [], status: "Sessão terminada" });
   render();
 }
 
@@ -896,6 +924,39 @@ document.addEventListener("click", async event => {
     render();
     return;
   }
+  if (action === "run-brickset-update") {
+    if (state.catalogUpdating) return;
+    if (!state.loggedIn || !state.accessToken) {
+      showMovementNotice("Inicia sessão com Google antes de actualizar o catálogo.", "error");
+      render();
+      return;
+    }
+    state.catalogUpdating = true;
+    state.movementNotice = null;
+    render();
+    try {
+      await runBricksetImport();
+      state.catalogUpdating = false;
+      state.status = "Catálogo Brickset actualizado.";
+      showMovementNotice("Catálogo Brickset actualizado com sucesso.", "success");
+    } catch (error) {
+      const messages = {
+        AUTH_EXPIRED: "A sessão Google expirou. Inicia sessão novamente.",
+        SCRIPT_ACCESS_DENIED: "Sem permissão para executar o Apps Script. Inicia sessão novamente e confirma o acesso solicitado.",
+        SCRIPT_NOT_FOUND: "O Apps Script ou a implantação API não foi encontrado.",
+        SCRIPT_EXECUTION_FAILED: "A função importBricksetSets terminou com um erro. Consulta as execuções no Apps Script.",
+      };
+      if (error.message === "AUTH_EXPIRED") {
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_SCOPE_KEY);
+        Object.assign(state, { loggedIn: false, accessToken: "", userEmail: "", loginError: messages.AUTH_EXPIRED });
+      }
+      state.catalogUpdating = false;
+      showMovementNotice(messages[error.message] || "Não foi possível actualizar o catálogo Brickset.", "error");
+    }
+    render();
+    return;
+  }
   if (action === "home") {
     if (!state.mode) {
       state.menuOpen = false;
@@ -966,6 +1027,7 @@ document.addEventListener("click", async event => {
       };
       if (error.message === "AUTH_EXPIRED") {
         sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_SCOPE_KEY);
         Object.assign(state, { loggedIn: false, accessToken: "", userEmail: "", loginError: messages.AUTH_EXPIRED });
       }
       state.movementSaving = false;
@@ -1136,8 +1198,17 @@ window.addEventListener("popstate", async event => {
 async function restoreSession() {
   render();
   const token = sessionStorage.getItem(TOKEN_KEY);
+  const storedScope = sessionStorage.getItem(TOKEN_SCOPE_KEY);
   if (!token) {
     state.checkingCredentials = false;
+    render();
+    return;
+  }
+  if (storedScope !== GOOGLE_OAUTH_SCOPE) {
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_SCOPE_KEY);
+    state.checkingCredentials = false;
+    state.loginError = "Inicia sessão novamente para autorizar a actualização do catálogo Brickset.";
     render();
     return;
   }
@@ -1146,6 +1217,7 @@ async function restoreSession() {
     state.accessToken = token;
   } catch {
     sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_SCOPE_KEY);
     state.loginError = "A sessão Google expirou. Inicia sessão novamente.";
   }
   state.checkingCredentials = false;
