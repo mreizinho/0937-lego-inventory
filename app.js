@@ -189,18 +189,20 @@ function locationAllocationMarkup() {
   if (state.mode !== "saida") return "";
   const activeAllocations = Object.entries(state.movementForm.allocations).filter(([, quantity]) => Number(quantity) > 0);
   const activeStorages = new Set(activeAllocations.map(([storage]) => storage));
-  const rows = activeAllocations.map(([storageName, storedQuantity]) => {
+  const rows = activeAllocations.map(([storageName, storedQuantity], index) => {
     const location = state.locationStock.find(item => item.storage === storageName);
     if (!location) return "";
     const storage = escapeHtml(storageName);
     const quantity = Math.min(location.stock, Math.max(1, Number(storedQuantity) || 1));
     const options = state.locationStock.filter(item => item.storage === storageName || !activeStorages.has(item.storage)).map(item => `<option value="${escapeHtml(item.storage)}"${item.storage === storageName ? " selected" : ""}>${escapeHtml(item.storage)} · disponível ${item.stock}</option>`).join("");
-    return `<div class="location-allocation-row"><div class="allocation-location-select"><select data-allocation-choice="${storage}" aria-label="Localização da saída">${options}</select><span class="select-arrow" aria-hidden="true">▾</span></div><div class="location-allocation-control"><input type="number" value="${quantity}" min="1" max="${location.stock}" step="1" inputmode="numeric" data-allocation-storage="${storage}" aria-label="Quantidade a retirar de ${storage}" required><div class="location-allocation-stepper"><button type="button" data-action="allocation-increase" data-storage="${storage}" aria-label="Aumentar quantidade em ${storage}">▴</button><button type="button" data-action="allocation-decrease" data-storage="${storage}" aria-label="Diminuir quantidade em ${storage}">▾</button></div></div></div>`;
+    const storageId = `movement-allocation-storage-${index}`;
+    const quantityId = `movement-allocation-qty-${index}`;
+    return `<div class="location-allocation-row movement-fields"><div class="movement-field storage-field"><label for="${storageId}"><span>Local</span></label><div class="select-control"><select id="${storageId}" data-allocation-choice="${storage}" aria-label="Localização da saída">${options}</select><span class="select-arrow" aria-hidden="true">▾</span></div></div><div class="movement-field qty-field"><label for="${quantityId}"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="${quantityId}" type="number" value="${quantity}" min="1" max="${location.stock}" step="1" inputmode="numeric" data-allocation-storage="${storage}" aria-label="Quantidade a retirar de ${storage}" required><div class="qty-stepper"><button type="button" data-action="allocation-increase" data-storage="${storage}" aria-label="Aumentar quantidade em ${storage}">▴</button><button type="button" data-action="allocation-decrease" data-storage="${storage}" aria-label="Diminuir quantidade em ${storage}">▾</button></div></div></div></div>`;
   }).join("");
   const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
   const canAddLocation = activeAllocations.length < state.locationStock.length;
   const lastStorage = escapeHtml(activeAllocations.at(-1)?.[0] || "");
-  return `<section class="location-allocations" aria-labelledby="location-allocation-title"><div class="location-allocation-heading"><span id="location-allocation-title">LOCAL</span><small>QTD <b aria-hidden="true">*</b></small></div>${rows}<div class="location-allocation-footer"><strong id="location-allocation-total">Total: ${allocated} un.</strong><span>${activeAllocations.length > 1 ? `<button type="button" data-action="allocation-remove" data-storage="${lastStorage}">− REMOVER ÚLTIMA</button>` : ""}${canAddLocation ? `<button type="button" data-action="allocation-add">+ ADICIONAR LOCALIZAÇÃO</button>` : ""}</span></div></section>`;
+  return `<section class="location-allocations" aria-label="Localizações da saída">${rows}<div class="location-allocation-footer"><strong id="location-allocation-total">Total: ${allocated} un.</strong><span>${activeAllocations.length > 1 ? `<button type="button" data-action="allocation-remove" data-storage="${lastStorage}">− REMOVER ÚLTIMA</button>` : ""}${canAddLocation ? `<button type="button" data-action="allocation-add">+ ADICIONAR LOCALIZAÇÃO</button>` : ""}</span></div></section>`;
 }
 
 function foundMarkup() {

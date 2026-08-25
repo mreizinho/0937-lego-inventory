@@ -169,3 +169,6 @@ html,body{height:100%;overflow:hidden}
 .allocation-location-select .select-arrow{top:0;right:0;bottom:0}
 .location-allocation-heading,.location-allocation-row{grid-template-columns:repeat(6,minmax(0,1fr))}.location-allocation-heading>:first-child,.location-allocation-row>:first-child{grid-column:span 4}.location-allocation-heading>:last-child,.location-allocation-row>:last-child{grid-column:span 2}
 @media(max-width:850px){.location-allocation-heading,.location-allocation-row{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.location-allocation-row.movement-fields{height:auto;margin-top:0;align-items:stretch}
+.location-allocation-row.movement-fields+.location-allocation-row.movement-fields{margin-top:14px}
+@media(max-width:850px){.location-allocation-row.movement-fields+.location-allocation-row.movement-fields{margin-top:11px}}
