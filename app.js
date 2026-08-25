@@ -176,12 +176,21 @@ function optionsMarkup() {
   const loginTitle = state.loginError || (state.checkingCredentials ? "A verificar credenciais..." : "Inicia sessão para continuar");
   const loginHelp = state.loginError ? "Toca aqui para tentar novamente." : state.checkingCredentials ? "A confirmar o acesso ao Google Sheets." : "As opções ficam disponíveis após o login com Google.";
   const login = state.loggedIn ? "" : `<button type="button" class="login-required ${state.loginError ? "has-error" : ""}" data-action="login">${icons.lock}<span><strong>${escapeHtml(loginTitle)}</strong><small>${loginHelp}</small></span></button>`;
-  return `<section class="workspace" id="inventario"><section class="options-panel"><p class="options-prompt">O que queres fazer hoje?</p>${login}<div class="options-grid">
-      ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
-      ${optionCard("saida", "Saída", "Registar set enviado", "saida")}
-      ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "consultar")}
-      ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "lote")}
-    </div><p class="legal-links"><a href="privacy.html">Política de Privacidade</a></p></section></section>`;
+  return `<section class="workspace sheets-page actions-page" id="inventario"><article class="sheets-explainer actions-explainer">
+    <div class="sheets-visual actions-visual"><img src="public/comunidade-0937-bricks.svg" alt="Blocos da Comunidade 0937"></div>
+    <div class="sheets-copy actions-copy">
+      <p class="sheets-eyebrow actions-eyebrow">ACÇÕES</p>
+      <h2>O que queres fazer hoje?</h2>
+      ${login}
+      <div class="options-grid">
+        ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
+        ${optionCard("saida", "Saída", "Registar set enviado", "saida")}
+        ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "consultar")}
+        ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "lote")}
+      </div>
+      <p class="legal-links"><a href="privacy.html">Política de Privacidade</a></p>
+    </div>
+  </article></section>`;
 }
 
 function googleSheetsMarkup() {
