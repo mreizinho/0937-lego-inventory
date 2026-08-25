@@ -206,7 +206,6 @@ html,body{height:100%;overflow:hidden}
 .actions-copy .option-card strong{font-size:20px}
 .actions-copy .option-card small{font-size:14px;line-height:1.35}
 .actions-copy .option-card>b{font-size:26px}
-.actions-copy .login-required{width:100%;margin:0 0 16px}
 .actions-legal{margin:14px 0 0}
 @media(max-width:850px){
   .actions-copy{padding:16px}
