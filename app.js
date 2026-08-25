@@ -193,13 +193,19 @@ function googleSheetsMarkup() {
   </article></section>`;
 }
 
+function bricksetLastUpdated() {
+  const cellValue = String(state.catalogRows?.[0]?.[0] ?? "").trim();
+  const updatedAt = cellValue.replace(/^Last updated:\s*/i, "").trim();
+  return updatedAt || (state.checkingCredentials ? "A carregar…" : "Não disponível");
+}
+
 function bricksetUpdateMarkup() {
   return `<section class="workspace sheets-page update-page"><article class="sheets-explainer">
     <div class="sheets-visual update-visual"><img src="public/brickset.png" alt="Logótipo Brickset"></div>
     <div class="sheets-copy update-copy">
       <p class="sheets-eyebrow update-eyebrow">CATÁLOGO</p>
       <h2>Actualizar a base de dados Brickset</h2>
-      <div class="update-date"><strong>02-02-2026@12:13</strong><span>Última actualização</span></div>
+      <div class="update-date"><strong>${escapeHtml(bricksetLastUpdated())}</strong><span>Última actualização</span></div>
       <p>A nossa App utiliza a Base de Dados do Brickset. Se um set for muito recente e não for encontrado na pesquisa, devemos actualizar a informação dos sets existentes, carregando no botão abaixo:</p>
       <button type="button" class="sheets-open-button update-button" disabled>ACTUALIZAR <span aria-hidden="true">↻</span></button>
     </div>
