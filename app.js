@@ -142,12 +142,12 @@ function foundMarkup() {
   const memberSelected = state.mode === "saida" && state.movementForm.origin === "Membro";
   const obsRequired = memberSelected || (state.mode === "saida" && state.movementForm.origin === "Outro");
   const originField = state.mode === "saida"
-    ? `<label><span>Destino <b aria-hidden="true">*</b></span><div class="select-control"><select name="origin" data-movement-field="origin" required><option value=""${state.movementForm.origin ? "" : " selected"}>Selecionar…</option>${["Espólio", "Membro", "Peças"].map(option => `<option value="${option}"${state.movementForm.origin === option ? " selected" : ""}>${option}</option>`).join("")}<option disabled>──────────</option><option value="Outro"${state.movementForm.origin === "Outro" ? " selected" : ""}>Outro</option></select><span class="select-arrow" aria-hidden="true">▾</span></div></label>`
+    ? `<label><span>Destino <b aria-hidden="true">*</b></span><div class="select-control"><select name="origin" data-movement-field="origin" required><option value=""${state.movementForm.origin ? "" : " selected"}>Selecionar…</option>${["Espólio", "Membro", "Peças"].map(option => `<option value="${option}"${state.movementForm.origin === option ? " selected" : ""}>${option}</option>`).join("")}<hr><option value="Outro"${state.movementForm.origin === "Outro" ? " selected" : ""}>Outro</option></select><span class="select-arrow" aria-hidden="true">▾</span></div></label>`
     : `<label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>`;
   const storageField = state.mode === "saida" ? "" : `<label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"></label>`;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
-    <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
+    <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}" draggable="false">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
     <div class="movement-fields${state.mode === "saida" ? " no-storage" : ""}">
       ${originField}
       <label><span><span id="movement-obs-label">${memberSelected ? "Nome do Membro" : "Obs"}</span> <b id="movement-obs-required" aria-hidden="true"${obsRequired ? "" : " hidden"}>*</b></span><input id="movement-obs" type="text" name="obs" data-movement-field="obs" value="${escapeHtml(state.movementForm.obs)}"${obsRequired ? " required" : ""} autocomplete="off"></label>
@@ -231,7 +231,7 @@ function movementFormForMode(mode) {
 }
 
 async function loadLastMovementDefaults(token) {
-  const range = encodeURIComponent("Movimentos!I2:K");
+  const range = encodeURIComponent("Movimentos!I2:L");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
@@ -241,7 +241,10 @@ async function loadLastMovementDefaults(token) {
   if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
   if (!response.ok) throw new Error(`SHEETS_ERROR_${response.status}`);
   const rows = (await response.json()).values || [];
-  const lastRow = [...rows].reverse().find(row => String(row[0] ?? "").trim() || String(row[2] ?? "").trim());
+  const lastRow = [...rows].reverse().find(row => {
+    const quantity = Number(String(row[3] ?? "0").replace(",", "."));
+    return quantity > 0 && (String(row[0] ?? "").trim() || String(row[2] ?? "").trim());
+  });
   state.lastMovementDefaults = {
     origin: String(lastRow?.[0] ?? ""),
     storage: String(lastRow?.[2] ?? ""),
@@ -730,7 +733,7 @@ document.addEventListener("click", async event => {
     render();
     try {
       await appendMovement();
-      state.lastMovementDefaults = submittedDefaults;
+      if (state.mode === "entrada") state.lastMovementDefaults = submittedDefaults;
       Object.assign(state, { query: "", selected: null, movementForm: movementFormForMode(state.mode), movementSaving: false, photoMetaVisible: true, status: `${movementName} do conjunto ${setCode} registada em Movimentos.` });
       showMovementNotice(`${movementName} registada com sucesso.`, "success");
     } catch (error) {

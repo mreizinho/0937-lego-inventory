@@ -161,3 +161,4 @@ html,body{height:100%;overflow:hidden}
 .movement-fields.no-storage>.qty-field{grid-column:5/span 2}
 :root{--control-button-bg:#eef0f2;--control-button-hover:#dde2e5}.qty-stepper button,.select-arrow{background:var(--control-button-bg)}.qty-stepper button:hover,.select-control:hover .select-arrow{background:var(--control-button-hover)}
 .qty-stepper button,.select-arrow{font-size:21px}
+.set-found-photo{-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}.set-found-photo img{pointer-events:none;user-select:none;-webkit-user-select:none;-webkit-user-drag:none}
