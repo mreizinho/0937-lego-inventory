@@ -179,8 +179,8 @@ function optionsMarkup() {
   return `<section class="workspace" id="inventario"><section class="options-panel"><p class="options-prompt">O que queres fazer hoje?</p>${login}<div class="options-grid">
       ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
       ${optionCard("saida", "Saída", "Registar set enviado", "saida")}
-      ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "lote")}
-      ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "consultar")}
+      ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "consultar")}
+      ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "lote")}
     </div><p class="legal-links"><a href="privacy.html">Política de Privacidade</a></p></section></section>`;
 }
 
