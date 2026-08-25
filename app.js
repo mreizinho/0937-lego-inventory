@@ -73,6 +73,10 @@ function updateAllocationControls() {
   }
 }
 
+function totalLocationStock() {
+  return state.locationStock.reduce((total, location) => total + location.stock, 0);
+}
+
 let barcodeStream = null;
 let barcodeScanTimer = null;
 let barcodeSession = 0;
@@ -203,6 +207,7 @@ function foundMarkup() {
   const creatingStorage = state.movementForm.storageChoice === "__other__";
   const storageOptions = state.storageOptions.map(storage => `<option value="${escapeHtml(storage)}"${state.movementForm.storageChoice === storage ? " selected" : ""}>${escapeHtml(storage)}</option>`).join("");
   const storageField = state.mode === "saida" ? "" : `<div class="movement-field storage-field"><label for="movement-storage-choice"><span>Local <b aria-hidden="true">*</b></span></label><div class="select-control"><select id="movement-storage-choice" name="storageChoice" data-storage-choice required><option value=""${state.movementForm.storageChoice ? "" : " selected"}>Selecionar…</option>${storageOptions}<hr><option value="__other__"${creatingStorage ? " selected" : ""}>Outro…</option></select><span class="select-arrow" aria-hidden="true">▾</span></div><input id="movement-new-storage" type="text" name="storage" data-movement-field="storage" value="${creatingStorage ? escapeHtml(state.movementForm.storage) : ""}" placeholder="Nova localização"${creatingStorage ? " required" : " hidden"} autocomplete="off"></div>`;
+  const quantityMaximum = state.mode === "saida" ? ` max="${totalLocationStock()}"` : "";
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
     <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}" draggable="false">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
@@ -210,7 +215,7 @@ function foundMarkup() {
       ${originField}
       <label><span><span id="movement-obs-label">${memberSelected ? "Nome do Membro" : "Obs"}</span> <b id="movement-obs-required" aria-hidden="true"${obsRequired ? "" : " hidden"}>*</b></span><input id="movement-obs" type="text" name="obs" data-movement-field="obs" value="${escapeHtml(state.movementForm.obs)}"${obsRequired ? " required" : ""} autocomplete="off"></label>
       ${storageField}
-      <div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1" step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>
+      <div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1"${quantityMaximum} step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>
       ${locationAllocationMarkup()}
     </div>
     <div class="movement-form-actions"><button type="button" class="movement-cancel" data-action="movement-cancel"${state.movementSaving ? " disabled" : ""}>CANCELAR</button><button type="button" class="movement-ok" data-action="movement-confirm"${state.movementSaving ? " disabled" : ""}>${state.movementSaving ? "A REGISTAR…" : "OK"}</button></div>
@@ -791,7 +796,8 @@ document.addEventListener("click", async event => {
   }
   if (action === "qty-increase" || action === "qty-decrease") {
     const currentQty = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
-    state.movementForm.qty = String(action === "qty-increase" ? currentQty + 1 : Math.max(1, currentQty - 1));
+    const maximumQty = state.mode === "saida" ? totalLocationStock() : Number.POSITIVE_INFINITY;
+    state.movementForm.qty = String(action === "qty-increase" ? Math.min(maximumQty, currentQty + 1) : Math.max(1, currentQty - 1));
     const qtyInput = document.querySelector("#movement-qty");
     if (qtyInput) qtyInput.value = state.movementForm.qty;
     if (state.mode === "saida") {
@@ -923,6 +929,9 @@ document.addEventListener("input", event => {
     if (movementField === "qty" && event.target.value !== "" && (!/^\d+$/.test(event.target.value) || Number(event.target.value) < 1)) {
       event.target.value = state.movementForm.qty;
       return;
+    }
+    if (movementField === "qty" && state.mode === "saida" && event.target.value !== "") {
+      event.target.value = String(Math.min(totalLocationStock(), Number(event.target.value)));
     }
     state.movementForm[movementField] = event.target.value;
     if (movementField === "qty" && state.mode === "saida") {
