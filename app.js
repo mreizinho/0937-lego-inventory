@@ -189,13 +189,13 @@ function locationAllocationMarkup() {
   if (state.mode !== "saida") return "";
   const activeAllocations = Object.entries(state.movementForm.allocations).filter(([, quantity]) => Number(quantity) > 0);
   const activeStorages = new Set(activeAllocations.map(([storage]) => storage));
-  const rows = activeAllocations.map(([storageName, storedQuantity], index) => {
+  const rows = activeAllocations.map(([storageName, storedQuantity]) => {
     const location = state.locationStock.find(item => item.storage === storageName);
     if (!location) return "";
     const storage = escapeHtml(storageName);
     const quantity = Math.min(location.stock, Math.max(1, Number(storedQuantity) || 1));
     const options = state.locationStock.filter(item => item.storage === storageName || !activeStorages.has(item.storage)).map(item => `<option value="${escapeHtml(item.storage)}"${item.storage === storageName ? " selected" : ""}>${escapeHtml(item.storage)} · disponível ${item.stock}</option>`).join("");
-    return `<div class="location-allocation-row${index === activeAllocations.length - 1 ? " last" : ""}"><div class="allocation-location-select"><select data-allocation-choice="${storage}" aria-label="Localização da saída">${options}</select><span class="select-arrow" aria-hidden="true">▾</span></div><div class="location-allocation-control"><input type="number" value="${quantity}" min="1" max="${location.stock}" step="1" inputmode="numeric" data-allocation-storage="${storage}" aria-label="Quantidade a retirar de ${storage}" required><div class="location-allocation-stepper"><button type="button" data-action="allocation-increase" data-storage="${storage}" aria-label="Aumentar quantidade em ${storage}">▴</button><button type="button" data-action="allocation-decrease" data-storage="${storage}" aria-label="Diminuir quantidade em ${storage}">▾</button></div></div></div>`;
+    return `<div class="location-allocation-row"><div class="allocation-location-select"><select data-allocation-choice="${storage}" aria-label="Localização da saída">${options}</select><span class="select-arrow" aria-hidden="true">▾</span></div><div class="location-allocation-control"><input type="number" value="${quantity}" min="1" max="${location.stock}" step="1" inputmode="numeric" data-allocation-storage="${storage}" aria-label="Quantidade a retirar de ${storage}" required><div class="location-allocation-stepper"><button type="button" data-action="allocation-increase" data-storage="${storage}" aria-label="Aumentar quantidade em ${storage}">▴</button><button type="button" data-action="allocation-decrease" data-storage="${storage}" aria-label="Diminuir quantidade em ${storage}">▾</button></div></div></div>`;
   }).join("");
   const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
   const canAddLocation = activeAllocations.length < state.locationStock.length;
