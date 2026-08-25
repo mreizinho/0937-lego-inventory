@@ -209,10 +209,10 @@ html,body{height:100%;overflow:hidden}
 .actions-legal{margin:14px 0 0}
 @media(max-width:850px){
   .actions-copy{padding:16px}
-  .actions-copy::after{content:"";order:2;width:calc(100% + 32px);height:1px;margin:20px -16px 18px;background:#e1e3e5}
-  .actions-copy .actions-eyebrow{order:3;text-align:left}
-  .sheets-copy.actions-copy>p.actions-tagline{order:4;margin-bottom:0;text-align:left}
-  .actions-copy .options-grid{order:1;gap:9px;padding:0}
+  .actions-copy .actions-eyebrow{order:1;text-align:left}
+  .sheets-copy.actions-copy>p.actions-tagline{order:2;margin-bottom:0;text-align:left}
+  .actions-copy::after{content:"";order:3;width:calc(100% + 32px);height:1px;margin:20px -16px 18px;background:#e1e3e5}
+  .actions-copy .options-grid{order:4;gap:9px;padding:0}
   .actions-copy .option-card{min-height:150px;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:10px 6px;border-left-width:3px;text-align:center}
   .actions-copy .option-card .mode-option-image{width:82px;height:82px}
   .actions-copy .option-card strong{font-size:14px}.actions-copy .option-card small{font-size:10px}.actions-copy .option-card>b{display:none}
