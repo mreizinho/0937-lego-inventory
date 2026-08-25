@@ -54,7 +54,7 @@ function allocateAcrossLocations(locations, requestedQuantity) {
     .sort((left, right) => right.stock - left.stock || left.storage.localeCompare(right.storage, "pt", { sensitivity: "base", numeric: true }))
     .forEach(location => {
       const quantity = Math.min(location.stock, remaining);
-      allocations[location.storage] = quantity;
+      if (quantity > 0) allocations[location.storage] = quantity;
       remaining -= quantity;
     });
   return allocations;
@@ -62,19 +62,19 @@ function allocateAcrossLocations(locations, requestedQuantity) {
 
 function updateAllocationControls() {
   document.querySelectorAll("[data-allocation-storage]").forEach(input => {
-    input.value = String(state.movementForm.allocations[input.dataset.allocationStorage] || 0);
+    input.value = String(state.movementForm.allocations[input.dataset.allocationStorage] || 1);
   });
   const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
-  const requested = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
-  const summary = document.querySelector("#location-allocation-summary");
-  if (summary) {
-    summary.textContent = `${allocated} de ${requested} un. atribuídas`;
-    summary.classList.toggle("incomplete", allocated !== requested);
-  }
+  state.movementForm.qty = String(allocated);
+  const total = document.querySelector("#location-allocation-total");
+  if (total) total.textContent = `Total: ${allocated} un.`;
 }
 
-function totalLocationStock() {
-  return state.locationStock.reduce((total, location) => total + location.stock, 0);
+function renderPreservingContentScroll() {
+  const scrollTop = document.querySelector(".app-content")?.scrollTop || 0;
+  render();
+  const content = document.querySelector(".app-content");
+  if (content) content.scrollTop = scrollTop;
 }
 
 let barcodeStream = null;
@@ -187,14 +187,20 @@ function scannerMarkup() {
 
 function locationAllocationMarkup() {
   if (state.mode !== "saida") return "";
-  const rows = state.locationStock.map(location => {
-    const storage = escapeHtml(location.storage);
-    const quantity = Math.max(0, Number(state.movementForm.allocations[location.storage]) || 0);
-    return `<div class="location-allocation-row"><span class="location-allocation-name"><b>${storage}</b><small>Disponível: ${location.stock}</small></span><div class="location-allocation-control"><input type="number" value="${quantity}" min="0" max="${location.stock}" step="1" inputmode="numeric" data-allocation-storage="${storage}" aria-label="Quantidade a retirar de ${storage}"><div class="location-allocation-stepper"><button type="button" data-action="allocation-increase" data-storage="${storage}" aria-label="Aumentar quantidade em ${storage}">▴</button><button type="button" data-action="allocation-decrease" data-storage="${storage}" aria-label="Diminuir quantidade em ${storage}">▾</button></div></div></div>`;
+  const activeAllocations = Object.entries(state.movementForm.allocations).filter(([, quantity]) => Number(quantity) > 0);
+  const activeStorages = new Set(activeAllocations.map(([storage]) => storage));
+  const rows = activeAllocations.map(([storageName, storedQuantity], index) => {
+    const location = state.locationStock.find(item => item.storage === storageName);
+    if (!location) return "";
+    const storage = escapeHtml(storageName);
+    const quantity = Math.min(location.stock, Math.max(1, Number(storedQuantity) || 1));
+    const options = state.locationStock.filter(item => item.storage === storageName || !activeStorages.has(item.storage)).map(item => `<option value="${escapeHtml(item.storage)}"${item.storage === storageName ? " selected" : ""}>${escapeHtml(item.storage)} · disponível ${item.stock}</option>`).join("");
+    return `<div class="location-allocation-row${index === activeAllocations.length - 1 ? " last" : ""}"><div class="allocation-location-select"><select data-allocation-choice="${storage}" aria-label="Localização da saída">${options}</select><span class="select-arrow" aria-hidden="true">▾</span></div><div class="location-allocation-control"><input type="number" value="${quantity}" min="1" max="${location.stock}" step="1" inputmode="numeric" data-allocation-storage="${storage}" aria-label="Quantidade a retirar de ${storage}" required><div class="location-allocation-stepper"><button type="button" data-action="allocation-increase" data-storage="${storage}" aria-label="Aumentar quantidade em ${storage}">▴</button><button type="button" data-action="allocation-decrease" data-storage="${storage}" aria-label="Diminuir quantidade em ${storage}">▾</button></div></div></div>`;
   }).join("");
   const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
-  const requested = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
-  return `<section class="location-allocations" aria-labelledby="location-allocation-title"><div class="location-allocation-heading"><span id="location-allocation-title">LOCALIZAÇÕES</span><small id="location-allocation-summary" class="${allocated === requested ? "" : "incomplete"}">${allocated} de ${requested} un. atribuídas</small></div>${rows}</section>`;
+  const canAddLocation = activeAllocations.length < state.locationStock.length;
+  const lastStorage = escapeHtml(activeAllocations.at(-1)?.[0] || "");
+  return `<section class="location-allocations" aria-labelledby="location-allocation-title"><div class="location-allocation-heading"><span id="location-allocation-title">LOCAL</span><small>QTD <b aria-hidden="true">*</b></small></div>${rows}<div class="location-allocation-footer"><strong id="location-allocation-total">Total: ${allocated} un.</strong><span>${activeAllocations.length > 1 ? `<button type="button" data-action="allocation-remove" data-storage="${lastStorage}">− REMOVER ÚLTIMA</button>` : ""}${canAddLocation ? `<button type="button" data-action="allocation-add">+ ADICIONAR LOCALIZAÇÃO</button>` : ""}</span></div></section>`;
 }
 
 function foundMarkup() {
@@ -207,7 +213,7 @@ function foundMarkup() {
   const creatingStorage = state.movementForm.storageChoice === "__other__";
   const storageOptions = state.storageOptions.map(storage => `<option value="${escapeHtml(storage)}"${state.movementForm.storageChoice === storage ? " selected" : ""}>${escapeHtml(storage)}</option>`).join("");
   const storageField = state.mode === "saida" ? "" : `<div class="movement-field storage-field"><label for="movement-storage-choice"><span>Local <b aria-hidden="true">*</b></span></label><div class="select-control"><select id="movement-storage-choice" name="storageChoice" data-storage-choice required><option value=""${state.movementForm.storageChoice ? "" : " selected"}>Selecionar…</option>${storageOptions}<hr><option value="__other__"${creatingStorage ? " selected" : ""}>Outro…</option></select><span class="select-arrow" aria-hidden="true">▾</span></div><input id="movement-new-storage" type="text" name="storage" data-movement-field="storage" value="${creatingStorage ? escapeHtml(state.movementForm.storage) : ""}" placeholder="Nova localização"${creatingStorage ? " required" : " hidden"} autocomplete="off"></div>`;
-  const quantityMaximum = state.mode === "saida" ? ` max="${totalLocationStock()}"` : "";
+  const quantityField = state.mode === "saida" ? "" : `<div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1" step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>`;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
     <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}" draggable="false">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
@@ -215,7 +221,7 @@ function foundMarkup() {
       ${originField}
       <label><span><span id="movement-obs-label">${memberSelected ? "Nome do Membro" : "Obs"}</span> <b id="movement-obs-required" aria-hidden="true"${obsRequired ? "" : " hidden"}>*</b></span><input id="movement-obs" type="text" name="obs" data-movement-field="obs" value="${escapeHtml(state.movementForm.obs)}"${obsRequired ? " required" : ""} autocomplete="off"></label>
       ${storageField}
-      <div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1"${quantityMaximum} step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>
+      ${quantityField}
       ${locationAllocationMarkup()}
     </div>
     <div class="movement-form-actions"><button type="button" class="movement-cancel" data-action="movement-cancel"${state.movementSaving ? " disabled" : ""}>CANCELAR</button><button type="button" class="movement-ok" data-action="movement-confirm"${state.movementSaving ? " disabled" : ""}>${state.movementSaving ? "A REGISTAR…" : "OK"}</button></div>
@@ -796,14 +802,9 @@ document.addEventListener("click", async event => {
   }
   if (action === "qty-increase" || action === "qty-decrease") {
     const currentQty = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
-    const maximumQty = state.mode === "saida" ? totalLocationStock() : Number.POSITIVE_INFINITY;
-    state.movementForm.qty = String(action === "qty-increase" ? Math.min(maximumQty, currentQty + 1) : Math.max(1, currentQty - 1));
+    state.movementForm.qty = String(action === "qty-increase" ? currentQty + 1 : Math.max(1, currentQty - 1));
     const qtyInput = document.querySelector("#movement-qty");
     if (qtyInput) qtyInput.value = state.movementForm.qty;
-    if (state.mode === "saida") {
-      state.movementForm.allocations = allocateAcrossLocations(state.locationStock, state.movementForm.qty);
-      updateAllocationControls();
-    }
     return;
   }
   if (action === "allocation-increase" || action === "allocation-decrease") {
@@ -811,9 +812,24 @@ document.addEventListener("click", async event => {
     const storage = button?.dataset.storage || "";
     const location = state.locationStock.find(item => item.storage === storage);
     if (!location) return;
-    const current = Math.max(0, Number.parseInt(state.movementForm.allocations[storage], 10) || 0);
-    state.movementForm.allocations[storage] = action === "allocation-increase" ? Math.min(location.stock, current + 1) : Math.max(0, current - 1);
+    const current = Math.max(1, Number.parseInt(state.movementForm.allocations[storage], 10) || 1);
+    state.movementForm.allocations[storage] = action === "allocation-increase" ? Math.min(location.stock, current + 1) : Math.max(1, current - 1);
     updateAllocationControls();
+    return;
+  }
+  if (action === "allocation-add") {
+    const activeStorages = new Set(Object.keys(state.movementForm.allocations));
+    const nextLocation = state.locationStock.find(location => !activeStorages.has(location.storage));
+    if (nextLocation) state.movementForm.allocations[nextLocation.storage] = 1;
+    updateAllocationControls();
+    renderPreservingContentScroll();
+    return;
+  }
+  if (action === "allocation-remove") {
+    const storage = event.target.closest("[data-storage]")?.dataset.storage || "";
+    if (storage && Object.keys(state.movementForm.allocations).length > 1) delete state.movementForm.allocations[storage];
+    updateAllocationControls();
+    renderPreservingContentScroll();
     return;
   }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
@@ -837,13 +853,13 @@ document.addEventListener("click", async event => {
       return;
     }
     if (state.mode === "saida") {
-      const requested = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
       const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
-      if (allocated !== requested) {
-        showMovementNotice(`Distribui as ${requested} unidades pelas localizações disponíveis.`, "error");
+      if (allocated < 1) {
+        showMovementNotice("Indica pelo menos uma localização e uma quantidade para a saída.", "error");
         render();
         return;
       }
+      state.movementForm.qty = String(allocated);
     }
     const setCode = state.selected.code;
     const movementName = state.mode === "entrada" ? "Entrada" : "Saída";
@@ -909,6 +925,20 @@ document.addEventListener("input", event => {
     }
     return;
   }
+  const previousAllocationStorage = event.target.dataset?.allocationChoice;
+  if (previousAllocationStorage) {
+    const nextStorage = event.target.value;
+    const nextLocation = state.locationStock.find(item => item.storage === nextStorage);
+    if (!nextLocation || nextStorage === previousAllocationStorage) return;
+    const quantity = Math.min(nextLocation.stock, Math.max(1, Number(state.movementForm.allocations[previousAllocationStorage]) || 1));
+    state.movementForm.allocations = Object.entries(state.movementForm.allocations).reduce((allocations, [storage, storedQuantity]) => {
+      allocations[storage === previousAllocationStorage ? nextStorage : storage] = storage === previousAllocationStorage ? quantity : storedQuantity;
+      return allocations;
+    }, Object.create(null));
+    updateAllocationControls();
+    renderPreservingContentScroll();
+    return;
+  }
   const allocationStorage = event.target.dataset?.allocationStorage;
   if (allocationStorage) {
     const location = state.locationStock.find(item => item.storage === allocationStorage);
@@ -918,7 +948,8 @@ document.addEventListener("input", event => {
       event.target.value = String(state.movementForm.allocations[allocationStorage] || 0);
       return;
     }
-    const quantity = rawQuantity === "" ? 0 : Math.min(location.stock, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
+    if (rawQuantity === "") return;
+    const quantity = Math.min(location.stock, Math.max(1, Number.parseInt(rawQuantity, 10) || 1));
     state.movementForm.allocations[allocationStorage] = quantity;
     if (rawQuantity !== "" && Number(rawQuantity) !== quantity) event.target.value = String(quantity);
     updateAllocationControls();
@@ -930,14 +961,7 @@ document.addEventListener("input", event => {
       event.target.value = state.movementForm.qty;
       return;
     }
-    if (movementField === "qty" && state.mode === "saida" && event.target.value !== "") {
-      event.target.value = String(Math.min(totalLocationStock(), Number(event.target.value)));
-    }
     state.movementForm[movementField] = event.target.value;
-    if (movementField === "qty" && state.mode === "saida") {
-      state.movementForm.allocations = allocateAcrossLocations(state.locationStock, state.movementForm.qty);
-      updateAllocationControls();
-    }
     if (movementField === "origin" && state.mode === "saida") {
       const memberSelected = event.target.value === "Membro";
       const obsRequired = memberSelected || event.target.value === "Outro";
