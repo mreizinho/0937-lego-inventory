@@ -875,12 +875,13 @@ document.addEventListener("click", async event => {
         state.lastMovementDefaults = submittedDefaults;
         state.storageOptions = sortStorageNames([...state.storageOptions, submittedDefaults.storage]);
       }
-      Object.assign(state, { query: "", selected: null, movementForm: movementFormForMode(state.mode), movementSaving: false, photoMetaVisible: true, status: `${movementName} do conjunto ${setCode} registada em Movimentos.` });
+      Object.assign(state, { mode: null, query: "", selected: null, movementForm: emptyMovementForm(), movementSaving: false, locationStock: [], photoMetaVisible: true, status: `${movementName} do conjunto ${setCode} registada em Movimentos.` });
       showMovementNotice(`${movementName} registada com sucesso.`, "success");
       if (isCurrentHistoryStep("found")) {
-        window.history.back();
+        window.history.go(-2);
         return;
       }
+      writeAppHistory("home", true);
     } catch (error) {
       const messages = {
         NOT_AUTHENTICATED: "Inicia novamente a sessão Google antes de registar o movimento.",
@@ -1033,7 +1034,7 @@ window.addEventListener("popstate", async event => {
   state.menuOpen = false;
 
   if (historyState.step === "home") {
-    Object.assign(state, { mode: null, query: "", selected: null, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
+    Object.assign(state, { mode: null, query: "", selected: null, movementForm: emptyMovementForm(), locationStock: [], photoMetaVisible: true });
     render();
     return;
   }
