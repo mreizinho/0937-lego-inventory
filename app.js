@@ -113,7 +113,7 @@ function menuMarkup(id) {
     : `<button class="google-login" data-action="login"><span>${icons.google}</span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>`;
   return `<div class="menu-popover" id="${id}">${login}
     <p class="menu-group-title">BASE DE DADOS</p>
-    ${menuItem("▦", "green", "Abrir Google Sheets", "Ver tabela completa", "open-sheet")}
+    ${menuItem("▦", "green", "Abrir Google Sheets", "Ver tabela completa", "show-sheets")}
     ${menuItem("↻", "blue", "Atualizar Catálogos", "Sync via API Brickset")}
     <p class="menu-group-title extras">EXTRAS</p>
     ${menuItem("▣", "orange", "Modo Inventário", "Iniciar novo inventário")}
@@ -130,7 +130,7 @@ function desktopTabsMarkup() {
   const sessionLabel = state.loggedIn ? "Logout" : "Login";
   return `<nav class="desktop-tabs" aria-label="Navegação principal">
     <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>Acções</button>
-    <button type="button" class="desktop-tab" data-action="open-sheet">Google Sheets</button>
+    <button type="button" class="desktop-tab${state.mode === "sheets" ? " active" : ""}" data-action="show-sheets"${state.mode === "sheets" ? ' aria-current="page"' : ""}>Google Sheets</button>
     <button type="button" class="desktop-tab" data-action="noop">Atualizar</button>
     <button type="button" class="desktop-tab" data-action="noop">Inventário</button>
     <button type="button" class="desktop-tab" data-action="noop">Consultas</button>
@@ -177,6 +177,19 @@ function optionsMarkup() {
       ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "lote")}
       ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "consultar")}
     </div></section></section>`;
+}
+
+function googleSheetsMarkup() {
+  return `<section class="workspace sheets-page"><article class="sheets-explainer">
+    <div class="sheets-visual"><img src="public/google-sheets.png" alt="Ilustração do Google Sheets"></div>
+    <div class="sheets-copy">
+      <p class="sheets-eyebrow">BASE DE DADOS</p>
+      <h2>Abrir o inventário no Google Sheets</h2>
+      <p>O spreadsheet será aberto num novo separador do browser. Esta aplicação continuará disponível no separador atual.</p>
+      <ul><li>Poderás consultar os movimentos e as existências diretamente na folha.</li><li>O acesso continua protegido pela conta Google e pelas permissões do spreadsheet.</li></ul>
+      <button type="button" class="sheets-open-button" data-action="open-sheet">ABRIR GOOGLE SHEETS <span aria-hidden="true">↗</span></button>
+    </div>
+  </article></section>`;
 }
 
 function keypadMarkup() {
@@ -257,7 +270,7 @@ function resultMarkup(item) {
 }
 
 function render() {
-  const content = !state.mode ? optionsMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
+  const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
 }
@@ -849,6 +862,13 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
+  if (action === "show-sheets") {
+    if (state.mode === "sheets") return;
+    Object.assign(state, { mode: "sheets", query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
+    writeAppHistory("sheets");
+    render();
+    return;
+  }
   if (action === "home") {
     if (!state.mode) return;
     Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });

@@ -179,4 +179,17 @@ html,body{height:100%;overflow:hidden}
 .desktop-session{margin-left:0;color:#d6d6d6}
 @media(min-width:851px){.header-menu{display:none}.movement-header{align-items:flex-start}.movement-header h1{position:absolute;top:14px}.movement-header-back{top:24px}.movement-header .desktop-tabs{position:absolute;right:max(5vw,24px);bottom:0;height:42px}}
 @media(min-width:851px) and (max-width:1050px){.desktop-tab{padding:0 8px;font-size:13px}}
-@media(max-width:850px){.desktop-tabs{display:none}}
+@media(max-width:850px){.masthead .desktop-tabs{display:none}}
+.sheets-page{padding-top:32px}
+.sheets-explainer{max-width:1040px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);overflow:hidden;border:1px solid #d9dddf;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(30,36,40,.05)}
+.sheets-visual{min-height:390px;display:grid;place-items:center;padding:32px;border-right:1px solid #e1e3e5;background:#fff}
+.sheets-visual img{display:block;width:100%;max-width:500px;height:auto}
+.sheets-copy{display:flex;flex-direction:column;justify-content:center;padding:44px 42px;text-align:left}
+.sheets-eyebrow{margin:0 0 9px;color:#438767;font-size:11px;font-weight:800;letter-spacing:1.5px}
+.sheets-copy h2{margin:0 0 16px;color:#333536;font-size:29px;line-height:1.15}
+.sheets-copy>p:not(.sheets-eyebrow){margin:0;color:#686e72;font-size:15px;line-height:1.55}
+.sheets-copy ul{margin:20px 0 28px;padding-left:20px;color:#555b5f;font-size:14px;line-height:1.5}
+.sheets-copy li+li{margin-top:8px}
+.sheets-open-button{align-self:flex-start;min-height:50px;padding:0 22px;border:0;border-radius:4px;background:#438767;color:#fff;font-size:13px;font-weight:800;letter-spacing:.45px;cursor:pointer}
+.sheets-open-button:hover,.sheets-open-button:focus-visible{background:#356e53;outline:0}.sheets-open-button span{margin-left:8px;font-size:17px}
+@media(max-width:850px){.sheets-page{padding:18px 14px}.sheets-explainer{display:block}.sheets-visual{min-height:0;padding:20px;border-right:0;border-bottom:1px solid #e1e3e5}.sheets-copy{padding:25px 22px 28px}.sheets-copy h2{font-size:23px}.sheets-open-button{width:100%}}
