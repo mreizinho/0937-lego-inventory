@@ -115,7 +115,7 @@ function menuMarkup(id) {
     ${menuItem("⌂", "blue", "Acções", "Voltar ao ecrã inicial", "home")}
     <p class="menu-group-title">BASE DE DADOS</p>
     ${menuItem("▦", "green", "Abrir Google Sheets", "Ver tabela completa", "show-sheets")}
-    ${menuItem("↻", "blue", "Atualizar Catálogos", "Sync via API Brickset")}
+    ${menuItem("↻", "blue", "Actualizar Catálogos", "Sync via API Brickset", "show-update")}
     <p class="menu-group-title extras">EXTRAS</p>
     ${menuItem("▣", "orange", "Modo Inventário", "Iniciar novo inventário")}
     ${menuItem("▽", "blue", "Consultas Avançadas", "Filtros por tema, período...")}
@@ -132,7 +132,7 @@ function desktopTabsMarkup() {
   return `<nav class="desktop-tabs" aria-label="Navegação principal">
     <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>Acções</button>
     <button type="button" class="desktop-tab${state.mode === "sheets" ? " active" : ""}" data-action="show-sheets"${state.mode === "sheets" ? ' aria-current="page"' : ""}>Google Sheets</button>
-    <button type="button" class="desktop-tab" data-action="noop">Atualizar</button>
+    <button type="button" class="desktop-tab${state.mode === "update" ? " active" : ""}" data-action="show-update"${state.mode === "update" ? ' aria-current="page"' : ""}>Actualizar</button>
     <button type="button" class="desktop-tab" data-action="noop">Inventário</button>
     <button type="button" class="desktop-tab" data-action="noop">Consultas</button>
     <button type="button" class="desktop-tab desktop-session" data-action="${sessionAction}">${sessionLabel}</button>
@@ -189,6 +189,19 @@ function googleSheetsMarkup() {
       <p>O spreadsheet será aberto num novo separador do browser. Esta aplicação continuará disponível no separador atual.</p>
       <ul><li>Poderás consultar os movimentos e as existências diretamente na folha.</li><li>O acesso continua protegido pela conta Google e pelas permissões do spreadsheet.</li></ul>
       <button type="button" class="sheets-open-button" data-action="open-sheet">ABRIR GOOGLE SHEETS <span aria-hidden="true">↗</span></button>
+    </div>
+  </article></section>`;
+}
+
+function bricksetUpdateMarkup() {
+  return `<section class="workspace sheets-page update-page"><article class="sheets-explainer">
+    <div class="sheets-visual update-visual"><img src="public/brickset.png" alt="Logótipo Brickset"></div>
+    <div class="sheets-copy update-copy">
+      <p class="sheets-eyebrow update-eyebrow">CATÁLOGO</p>
+      <h2>Actualizar a base de dados Brickset</h2>
+      <div class="update-date"><strong>02-02-2026@12:13</strong><span>Última actualização</span></div>
+      <p>A nossa App utiliza a Base de Dados do Brickset. Se um set for muito recente e não for encontrado na pesquisa, devemos actualizar a informação dos sets existentes, carregando no botão abaixo:</p>
+      <button type="button" class="sheets-open-button update-button" disabled>ACTUALIZAR <span aria-hidden="true">↻</span></button>
     </div>
   </article></section>`;
 }
@@ -271,7 +284,7 @@ function resultMarkup(item) {
 }
 
 function render() {
-  const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
+  const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
 }
@@ -867,6 +880,13 @@ document.addEventListener("click", async event => {
     if (state.mode === "sheets") return;
     Object.assign(state, { mode: "sheets", query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
     writeAppHistory("sheets");
+    render();
+    return;
+  }
+  if (action === "show-update") {
+    if (state.mode === "update") return;
+    Object.assign(state, { mode: "update", query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
+    writeAppHistory("update");
     render();
     return;
   }
