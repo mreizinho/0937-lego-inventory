@@ -127,7 +127,7 @@ function menuItem(symbol, color, title, description, action = "noop") {
 
 function desktopTabsMarkup() {
   const sessionAction = state.loggedIn ? "logout" : "login";
-  const sessionLabel = state.loggedIn ? "Sair" : "Entrar";
+  const sessionLabel = state.loggedIn ? "Logout" : "Login";
   return `<nav class="desktop-tabs" aria-label="Navegação principal">
     <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>Acções</button>
     <button type="button" class="desktop-tab" data-action="open-sheet">Google Sheets</button>
