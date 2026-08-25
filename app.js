@@ -127,13 +127,13 @@ function menuItem(symbol, color, title, description, action = "noop") {
 
 function desktopTabsMarkup() {
   const sessionAction = state.loggedIn ? "logout" : "login";
-  const sessionLabel = state.loggedIn ? "SAIR" : "ENTRAR";
+  const sessionLabel = state.loggedIn ? "Sair" : "Entrar";
   return `<nav class="desktop-tabs" aria-label="Navegação principal">
-    <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>ACÇÕES</button>
-    <button type="button" class="desktop-tab" data-action="open-sheet">GOOGLE SHEETS</button>
-    <button type="button" class="desktop-tab" data-action="noop">ATUALIZAR</button>
-    <button type="button" class="desktop-tab" data-action="noop">INVENTÁRIO</button>
-    <button type="button" class="desktop-tab" data-action="noop">CONSULTAS</button>
+    <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>Acções</button>
+    <button type="button" class="desktop-tab" data-action="open-sheet">Google Sheets</button>
+    <button type="button" class="desktop-tab" data-action="noop">Atualizar</button>
+    <button type="button" class="desktop-tab" data-action="noop">Inventário</button>
+    <button type="button" class="desktop-tab" data-action="noop">Consultas</button>
     <button type="button" class="desktop-tab desktop-session" data-action="${sessionAction}">${sessionLabel}</button>
   </nav>`;
 }
