@@ -113,7 +113,6 @@ function menuMarkup(id) {
     : `<button class="google-login" data-action="login"><span>${icons.google}</span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>`;
   return `<div class="menu-popover" id="${id}">${login}
     <p class="menu-group-title">BASE DE DADOS</p>
-    ${menuItem("↓", "yellow", "Transferir Base de Dados", "Download offline da BD")}
     ${menuItem("▦", "green", "Abrir Google Sheets", "Ver tabela completa", "open-sheet")}
     ${menuItem("↻", "blue", "Atualizar Catálogos", "Sync via API Brickset")}
     <p class="menu-group-title extras">EXTRAS</p>
