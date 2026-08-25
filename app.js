@@ -6,7 +6,7 @@ const TOKEN_KEY = "googleSheetsAccessToken";
 const APP_HISTORY_ID = "0937-lego-inventory";
 
 function emptyMovementForm(defaults = {}) {
-  return { origin: defaults.origin || "", storage: defaults.storage || "", qty: "1", obs: "" };
+  return { origin: defaults.origin || "", storage: defaults.storage || "", qty: "1", obs: "", allocations: Object.create(null) };
 }
 
 const state = {
@@ -24,6 +24,8 @@ const state = {
   movementSaving: false,
   movementNotice: null,
   lastMovementDefaults: { origin: "", storage: "" },
+  storageOptions: [],
+  locationStock: [],
   photoMetaVisible: true,
   scannerOpen: false,
   scannerStatus: "",
@@ -37,6 +39,37 @@ function writeAppHistory(step, replace = false) {
 
 function isCurrentHistoryStep(step) {
   return window.history.state?.app === APP_HISTORY_ID && window.history.state.step === step;
+}
+
+function sortStorageNames(names) {
+  return [...new Set(names.map(value => String(value ?? "").trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, "pt", { sensitivity: "base", numeric: true }));
+}
+
+function allocateAcrossLocations(locations, requestedQuantity) {
+  let remaining = Math.max(0, Number.parseInt(requestedQuantity, 10) || 0);
+  const allocations = Object.create(null);
+  [...locations]
+    .sort((left, right) => right.stock - left.stock || left.storage.localeCompare(right.storage, "pt", { sensitivity: "base", numeric: true }))
+    .forEach(location => {
+      const quantity = Math.min(location.stock, remaining);
+      allocations[location.storage] = quantity;
+      remaining -= quantity;
+    });
+  return allocations;
+}
+
+function updateAllocationControls() {
+  document.querySelectorAll("[data-allocation-storage]").forEach(input => {
+    input.value = String(state.movementForm.allocations[input.dataset.allocationStorage] || 0);
+  });
+  const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
+  const requested = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
+  const summary = document.querySelector("#location-allocation-summary");
+  if (summary) {
+    summary.textContent = `${allocated} de ${requested} un. atribuídas`;
+    summary.classList.toggle("incomplete", allocated !== requested);
+  }
 }
 
 let barcodeStream = null;
@@ -147,6 +180,18 @@ function scannerMarkup() {
   </section>`;
 }
 
+function locationAllocationMarkup() {
+  if (state.mode !== "saida") return "";
+  const rows = state.locationStock.map(location => {
+    const storage = escapeHtml(location.storage);
+    const quantity = Math.max(0, Number(state.movementForm.allocations[location.storage]) || 0);
+    return `<div class="location-allocation-row"><span class="location-allocation-name"><b>${storage}</b><small>Disponível: ${location.stock}</small></span><div class="location-allocation-control"><input type="number" value="${quantity}" min="0" max="${location.stock}" step="1" inputmode="numeric" data-allocation-storage="${storage}" aria-label="Quantidade a retirar de ${storage}"><div class="location-allocation-stepper"><button type="button" data-action="allocation-increase" data-storage="${storage}" aria-label="Aumentar quantidade em ${storage}">▴</button><button type="button" data-action="allocation-decrease" data-storage="${storage}" aria-label="Diminuir quantidade em ${storage}">▾</button></div></div></div>`;
+  }).join("");
+  const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
+  const requested = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
+  return `<section class="location-allocations" aria-labelledby="location-allocation-title"><div class="location-allocation-heading"><span id="location-allocation-title">LOCALIZAÇÕES</span><small id="location-allocation-summary" class="${allocated === requested ? "" : "incomplete"}">${allocated} de ${requested} un. atribuídas</small></div>${rows}</section>`;
+}
+
 function foundMarkup() {
   const item = state.selected;
   const memberSelected = state.mode === "saida" && state.movementForm.origin === "Membro";
@@ -154,7 +199,8 @@ function foundMarkup() {
   const originField = state.mode === "saida"
     ? `<label><span>Destino <b aria-hidden="true">*</b></span><div class="select-control"><select name="origin" data-movement-field="origin" required><option value=""${state.movementForm.origin ? "" : " selected"}>Selecionar…</option>${["Espólio", "Membro", "Peças"].map(option => `<option value="${option}"${state.movementForm.origin === option ? " selected" : ""}>${option}</option>`).join("")}<hr><option value="Outro"${state.movementForm.origin === "Outro" ? " selected" : ""}>Outro</option></select><span class="select-arrow" aria-hidden="true">▾</span></div></label>`
     : `<label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>`;
-  const storageField = state.mode === "saida" ? "" : `<label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"></label>`;
+  const storageOptions = state.storageOptions.map(storage => `<option value="${escapeHtml(storage)}"></option>`).join("");
+  const storageField = state.mode === "saida" ? "" : `<label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" list="storage-options" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"><datalist id="storage-options">${storageOptions}</datalist></label>`;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
     <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}" draggable="false">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
@@ -163,6 +209,7 @@ function foundMarkup() {
       <label><span><span id="movement-obs-label">${memberSelected ? "Nome do Membro" : "Obs"}</span> <b id="movement-obs-required" aria-hidden="true"${obsRequired ? "" : " hidden"}>*</b></span><input id="movement-obs" type="text" name="obs" data-movement-field="obs" value="${escapeHtml(state.movementForm.obs)}"${obsRequired ? " required" : ""} autocomplete="off"></label>
       ${storageField}
       <div class="movement-field qty-field"><label for="movement-qty"><span>Qtd <b aria-hidden="true">*</b></span></label><div class="qty-control"><input id="movement-qty" type="number" name="qty" data-movement-field="qty" value="${escapeHtml(state.movementForm.qty)}" min="1" step="1" inputmode="numeric" required autocomplete="off"><div class="qty-stepper"><button type="button" data-action="qty-increase" aria-label="Aumentar quantidade">▴</button><button type="button" data-action="qty-decrease" aria-label="Diminuir quantidade">▾</button></div></div></div>
+      ${locationAllocationMarkup()}
     </div>
     <div class="movement-form-actions"><button type="button" class="movement-cancel" data-action="movement-cancel"${state.movementSaving ? " disabled" : ""}>CANCELAR</button><button type="button" class="movement-ok" data-action="movement-confirm"${state.movementSaving ? " disabled" : ""}>${state.movementSaving ? "A REGISTAR…" : "OK"}</button></div>
   </article></div></section></section>`;
@@ -259,6 +306,7 @@ async function loadLastMovementDefaults(token) {
     origin: String(lastRow?.[0] ?? ""),
     storage: String(lastRow?.[2] ?? ""),
   };
+  state.storageOptions = sortStorageNames(rows.map(row => row[2]));
 }
 
 async function loadCatalog(token) {
@@ -311,7 +359,7 @@ function createMovementTimestamp() {
   return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
-async function getAvailableStock(setNumber) {
+async function getLocationStock(setNumber) {
   const range = encodeURIComponent("Movimentos!D2:L");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
     headers: { Authorization: `Bearer ${state.accessToken}` },
@@ -322,47 +370,67 @@ async function getAvailableStock(setNumber) {
   if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
   if (!response.ok) throw new Error(`SHEETS_READ_ERROR_${response.status}`);
   const data = await response.json();
-  return (data.values || []).reduce((stock, row) => {
-    if (String(row[0] ?? "").trim() !== String(setNumber).trim()) return stock;
+  const stockByStorage = new Map();
+  (data.values || []).forEach(row => {
+    if (String(row[0] ?? "").trim() !== String(setNumber).trim()) return;
+    const storage = String(row[7] ?? "").trim();
+    if (!storage) return;
     const quantity = Number(String(row[8] ?? "0").replace(",", "."));
-    return stock + (Number.isFinite(quantity) ? quantity : 0);
-  }, 0);
+    if (!Number.isFinite(quantity)) return;
+    stockByStorage.set(storage, (stockByStorage.get(storage) || 0) + quantity);
+  });
+  return [...stockByStorage.entries()]
+    .map(([storage, stock]) => ({ storage, stock }))
+    .filter(location => location.stock > 0)
+    .sort((left, right) => left.storage.localeCompare(right.storage, "pt", { sensitivity: "base", numeric: true }));
 }
 
 async function appendMovement() {
   if (!state.selected || !state.accessToken || !state.userEmail) throw new Error("NOT_AUTHENTICATED");
   const requestedQuantity = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
+  let storageQuantities = [{ storage: state.movementForm.storage.trim(), quantity: requestedQuantity }];
   if (state.mode === "saida") {
-    const availableStock = await getAvailableStock(state.selected.code);
+    const currentLocations = await getLocationStock(state.selected.code);
+    const availableStock = currentLocations.reduce((total, location) => total + location.stock, 0);
     if (requestedQuantity > availableStock) {
       const error = new Error("INSUFFICIENT_STOCK");
       error.availableStock = availableStock;
       throw error;
     }
+    storageQuantities = Object.entries(state.movementForm.allocations)
+      .map(([storage, quantity]) => ({ storage: storage.trim(), quantity: Number.parseInt(quantity, 10) || 0 }))
+      .filter(allocation => allocation.storage && allocation.quantity > 0);
+    const allocatedQuantity = storageQuantities.reduce((total, allocation) => total + allocation.quantity, 0);
+    if (allocatedQuantity !== requestedQuantity) throw new Error("INVALID_ALLOCATION");
+    const changedLocation = storageQuantities.find(allocation => {
+      const current = currentLocations.find(location => location.storage === allocation.storage);
+      return !current || allocation.quantity > current.stock;
+    });
+    if (changedLocation) throw new Error("LOCATION_STOCK_CHANGED");
   }
-  const quantity = requestedQuantity * (state.mode === "saida" ? -1 : 1);
-  const row = [
-    createMovementId(),
-    createMovementTimestamp(),
-    state.selected.ean,
-    state.selected.code,
-    state.selected.name,
-    state.selected.year,
-    state.selected.theme,
-    state.selected.subTheme || "",
-    state.movementForm.origin.trim(),
-    state.selected.imageUrl,
-    state.movementForm.storage.trim(),
-    quantity,
-    state.userEmail,
-    state.selected.rrp || "",
-    state.movementForm.obs.trim(),
-  ];
+  const timestamp = createMovementTimestamp();
+  const rows = storageQuantities.map(allocation => [
+      createMovementId(),
+      timestamp,
+      state.selected.ean,
+      state.selected.code,
+      state.selected.name,
+      state.selected.year,
+      state.selected.theme,
+      state.selected.subTheme || "",
+      state.movementForm.origin.trim(),
+      state.selected.imageUrl,
+      allocation.storage,
+      allocation.quantity * (state.mode === "saida" ? -1 : 1),
+      state.userEmail,
+      state.selected.rrp || "",
+      state.movementForm.obs.trim(),
+    ]);
   const range = encodeURIComponent("Movimentos!A:O");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
     method: "POST",
     headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ majorDimension: "ROWS", values: [row] }),
+    body: JSON.stringify({ majorDimension: "ROWS", values: rows }),
   });
   if (response.status === 401) throw new Error("AUTH_EXPIRED");
   if (response.status === 403) throw new Error("WRITE_DENIED");
@@ -408,7 +476,7 @@ function loginWithGoogle() {
 function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
   sessionStorage.removeItem(TOKEN_KEY);
-  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, status: "Sessão terminada" });
+  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, storageOptions: [], locationStock: [], status: "Sessão terminada" });
   render();
 }
 
@@ -430,7 +498,8 @@ async function lookup() {
   }
   if (state.mode === "saida") {
     try {
-      const availableStock = await getAvailableStock(found.code);
+      const locations = await getLocationStock(found.code);
+      const availableStock = locations.reduce((total, location) => total + location.stock, 0);
       if (availableStock <= 0) {
         state.selected = null;
         state.status = `O conjunto ${found.code} não tem stock disponível.`;
@@ -438,6 +507,8 @@ async function lookup() {
         render();
         return;
       }
+      state.locationStock = locations;
+      state.movementForm.allocations = allocateAcrossLocations(locations, state.movementForm.qty);
     } catch (error) {
       state.selected = null;
       state.status = "Não foi possível verificar o stock.";
@@ -450,6 +521,8 @@ async function lookup() {
       render();
       return;
     }
+  } else {
+    state.locationStock = [];
   }
   state.selected = found;
   state.status = `Conjunto ${found.code} encontrado no catálogo`;
@@ -648,14 +721,12 @@ async function openBarcodeScanner(addHistory = true) {
             const found = findSetByEan(ean);
             if (found) {
               state.query = ean;
-              state.selected = found;
               state.photoMetaVisible = true;
-              state.status = `Conjunto ${found.code} encontrado no catálogo`;
               stopBarcodeCamera();
               state.scannerOpen = false;
               state.scannerStatus = "";
-              writeAppHistory("found", true);
-              render();
+              writeAppHistory("mode", true);
+              await lookup();
               return;
             }
             if (lastUnknownEan !== ean) {
@@ -690,6 +761,7 @@ document.addEventListener("click", async event => {
     state.selected = null;
     state.menuOpen = false;
     state.movementForm = movementFormForMode(state.mode);
+    state.locationStock = [];
     state.photoMetaVisible = true;
     writeAppHistory("mode");
     render();
@@ -720,6 +792,20 @@ document.addEventListener("click", async event => {
     state.movementForm.qty = String(action === "qty-increase" ? currentQty + 1 : Math.max(1, currentQty - 1));
     const qtyInput = document.querySelector("#movement-qty");
     if (qtyInput) qtyInput.value = state.movementForm.qty;
+    if (state.mode === "saida") {
+      state.movementForm.allocations = allocateAcrossLocations(state.locationStock, state.movementForm.qty);
+      updateAllocationControls();
+    }
+    return;
+  }
+  if (action === "allocation-increase" || action === "allocation-decrease") {
+    const button = event.target.closest("[data-storage]");
+    const storage = button?.dataset.storage || "";
+    const location = state.locationStock.find(item => item.storage === storage);
+    if (!location) return;
+    const current = Math.max(0, Number.parseInt(state.movementForm.allocations[storage], 10) || 0);
+    state.movementForm.allocations[storage] = action === "allocation-increase" ? Math.min(location.stock, current + 1) : Math.max(0, current - 1);
+    updateAllocationControls();
     return;
   }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
@@ -742,6 +828,15 @@ document.addEventListener("click", async event => {
       invalidField.reportValidity();
       return;
     }
+    if (state.mode === "saida") {
+      const requested = Math.max(1, Number.parseInt(state.movementForm.qty, 10) || 1);
+      const allocated = Object.values(state.movementForm.allocations).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
+      if (allocated !== requested) {
+        showMovementNotice(`Distribui as ${requested} unidades pelas localizações disponíveis.`, "error");
+        render();
+        return;
+      }
+    }
     const setCode = state.selected.code;
     const movementName = state.mode === "entrada" ? "Entrada" : "Saída";
     const submittedDefaults = { origin: state.movementForm.origin.trim(), storage: state.movementForm.storage.trim() };
@@ -750,7 +845,10 @@ document.addEventListener("click", async event => {
     render();
     try {
       await appendMovement();
-      if (state.mode === "entrada") state.lastMovementDefaults = submittedDefaults;
+      if (state.mode === "entrada") {
+        state.lastMovementDefaults = submittedDefaults;
+        state.storageOptions = sortStorageNames([...state.storageOptions, submittedDefaults.storage]);
+      }
       Object.assign(state, { query: "", selected: null, movementForm: movementFormForMode(state.mode), movementSaving: false, photoMetaVisible: true, status: `${movementName} do conjunto ${setCode} registada em Movimentos.` });
       showMovementNotice(`${movementName} registada com sucesso.`, "success");
       if (isCurrentHistoryStep("found")) {
@@ -764,6 +862,8 @@ document.addEventListener("click", async event => {
         READ_DENIED: "Esta conta não tem permissão para consultar os movimentos e validar o stock.",
         WRITE_DENIED: "Esta conta não tem permissão para escrever no sheet Movimentos.",
         MOVEMENTS_SHEET_NOT_FOUND: "Não foi possível encontrar o sheet Movimentos.",
+        INVALID_ALLOCATION: "A distribuição por localizações não corresponde à quantidade pedida.",
+        LOCATION_STOCK_CHANGED: "O stock de uma das localizações foi alterado. Volta a procurar o conjunto.",
       };
       if (error.message === "AUTH_EXPIRED") {
         sessionStorage.removeItem(TOKEN_KEY);
@@ -787,6 +887,21 @@ document.addEventListener("click", async event => {
 });
 
 document.addEventListener("input", event => {
+  const allocationStorage = event.target.dataset?.allocationStorage;
+  if (allocationStorage) {
+    const location = state.locationStock.find(item => item.storage === allocationStorage);
+    if (!location) return;
+    const rawQuantity = event.target.value;
+    if (rawQuantity !== "" && !/^\d+$/.test(rawQuantity)) {
+      event.target.value = String(state.movementForm.allocations[allocationStorage] || 0);
+      return;
+    }
+    const quantity = rawQuantity === "" ? 0 : Math.min(location.stock, Math.max(0, Number.parseInt(rawQuantity, 10) || 0));
+    state.movementForm.allocations[allocationStorage] = quantity;
+    if (rawQuantity !== "" && Number(rawQuantity) !== quantity) event.target.value = String(quantity);
+    updateAllocationControls();
+    return;
+  }
   const movementField = event.target.dataset?.movementField;
   if (movementField) {
     if (movementField === "qty" && event.target.value !== "" && (!/^\d+$/.test(event.target.value) || Number(event.target.value) < 1)) {
@@ -794,6 +909,10 @@ document.addEventListener("input", event => {
       return;
     }
     state.movementForm[movementField] = event.target.value;
+    if (movementField === "qty" && state.mode === "saida") {
+      state.movementForm.allocations = allocateAcrossLocations(state.locationStock, state.movementForm.qty);
+      updateAllocationControls();
+    }
     if (movementField === "origin" && state.mode === "saida") {
       const memberSelected = event.target.value === "Membro";
       const obsRequired = memberSelected || event.target.value === "Outro";
@@ -856,14 +975,14 @@ document.addEventListener("visibilitychange", () => {
 
 window.addEventListener("beforeunload", stopBarcodeCamera);
 
-window.addEventListener("popstate", event => {
+window.addEventListener("popstate", async event => {
   const historyState = event.state;
   if (historyState?.app !== APP_HISTORY_ID) return;
   if (state.scannerOpen) closeBarcodeScanner();
   state.menuOpen = false;
 
   if (historyState.step === "home") {
-    Object.assign(state, { mode: null, query: "", selected: null, movementForm: emptyMovementForm(), movementNotice: null, photoMetaVisible: true });
+    Object.assign(state, { mode: null, query: "", selected: null, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
     render();
     return;
   }
@@ -874,7 +993,18 @@ window.addEventListener("popstate", event => {
   state.movementForm = movementFormForMode(state.mode);
   state.photoMetaVisible = true;
 
-  if (historyState.step === "found") state.selected = findSet(state.query) || null;
+  if (historyState.step === "found") {
+    state.selected = findSet(state.query) || null;
+    if (state.mode === "saida" && state.selected) {
+      try {
+        state.locationStock = await getLocationStock(state.selected.code);
+        state.movementForm.allocations = allocateAcrossLocations(state.locationStock, state.movementForm.qty);
+      } catch {
+        state.selected = null;
+        showMovementNotice("Não foi possível atualizar o stock por localização.", "error");
+      }
+    }
+  }
   render();
   if (historyState.step === "scanner") openBarcodeScanner(false);
 });
