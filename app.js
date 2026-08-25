@@ -6,7 +6,8 @@ const TOKEN_KEY = "googleSheetsAccessToken";
 const APP_HISTORY_ID = "0937-lego-inventory";
 
 function emptyMovementForm(defaults = {}) {
-  return { origin: defaults.origin || "", storage: defaults.storage || "", qty: "1", obs: "", allocations: Object.create(null) };
+  const storage = defaults.storage || "";
+  return { origin: defaults.origin || "", storage, storageChoice: storage, qty: "1", obs: "", allocations: Object.create(null) };
 }
 
 const state = {
@@ -199,8 +200,9 @@ function foundMarkup() {
   const originField = state.mode === "saida"
     ? `<label><span>Destino <b aria-hidden="true">*</b></span><div class="select-control"><select name="origin" data-movement-field="origin" required><option value=""${state.movementForm.origin ? "" : " selected"}>Selecionar…</option>${["Espólio", "Membro", "Peças"].map(option => `<option value="${option}"${state.movementForm.origin === option ? " selected" : ""}>${option}</option>`).join("")}<hr><option value="Outro"${state.movementForm.origin === "Outro" ? " selected" : ""}>Outro</option></select><span class="select-arrow" aria-hidden="true">▾</span></div></label>`
     : `<label><span>Origem <b aria-hidden="true">*</b></span><input type="text" name="origin" data-movement-field="origin" value="${escapeHtml(state.movementForm.origin)}" required autocomplete="off"></label>`;
-  const storageOptions = state.storageOptions.map(storage => `<option value="${escapeHtml(storage)}"></option>`).join("");
-  const storageField = state.mode === "saida" ? "" : `<label><span>Local <b aria-hidden="true">*</b></span><input type="text" name="storage" data-movement-field="storage" list="storage-options" value="${escapeHtml(state.movementForm.storage)}" required autocomplete="off"><datalist id="storage-options">${storageOptions}</datalist></label>`;
+  const creatingStorage = state.movementForm.storageChoice === "__other__";
+  const storageOptions = state.storageOptions.map(storage => `<option value="${escapeHtml(storage)}"${state.movementForm.storageChoice === storage ? " selected" : ""}>${escapeHtml(storage)}</option>`).join("");
+  const storageField = state.mode === "saida" ? "" : `<div class="movement-field storage-field"><label for="movement-storage-choice"><span>Local <b aria-hidden="true">*</b></span></label><div class="select-control"><select id="movement-storage-choice" name="storageChoice" data-storage-choice required><option value=""${state.movementForm.storageChoice ? "" : " selected"}>Selecionar…</option>${storageOptions}<hr><option value="__other__"${creatingStorage ? " selected" : ""}>Outro…</option></select><span class="select-arrow" aria-hidden="true">▾</span></div><input id="movement-new-storage" type="text" name="storage" data-movement-field="storage" value="${creatingStorage ? escapeHtml(state.movementForm.storage) : ""}" placeholder="Nova localização"${creatingStorage ? " required" : " hidden"} autocomplete="off"></div>`;
   return `<section class="workspace"><section class="scan-panel"><div class="set-found-screen"><article class="set-found-card">
     <h3>${escapeHtml(item.code)} <span>–</span> ${escapeHtml(item.name)}</h3>
     <button type="button" class="set-found-photo" data-action="toggle-photo-meta" aria-label="Mostrar ou ocultar Ano e Tema" aria-pressed="${!state.photoMetaVisible}">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} - ${item.name}`)}" draggable="false">` : "<span>Imagem indisponível</span>"}<span class="set-photo-meta"${state.photoMetaVisible ? "" : " hidden"}><span><small>ANO</small><b>${escapeHtml(item.year || "—")}</b></span><span><small>TEMA</small><b>${escapeHtml(item.theme || "—")}</b></span></span></button>
@@ -887,6 +889,20 @@ document.addEventListener("click", async event => {
 });
 
 document.addEventListener("input", event => {
+  if (event.target.dataset?.storageChoice !== undefined) {
+    const choice = event.target.value;
+    const creatingStorage = choice === "__other__";
+    state.movementForm.storageChoice = choice;
+    state.movementForm.storage = creatingStorage ? "" : choice;
+    const newStorageInput = document.querySelector("#movement-new-storage");
+    if (newStorageInput) {
+      newStorageInput.hidden = !creatingStorage;
+      newStorageInput.required = creatingStorage;
+      newStorageInput.value = "";
+      if (creatingStorage) newStorageInput.focus({ preventScroll: true });
+    }
+    return;
+  }
   const allocationStorage = event.target.dataset?.allocationStorage;
   if (allocationStorage) {
     const location = state.locationStock.find(item => item.storage === allocationStorage);
