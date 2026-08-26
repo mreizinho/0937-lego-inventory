@@ -201,11 +201,36 @@ function desktopTabsMarkup() {
   </nav>`;
 }
 
+function mainHeaderMarkup(extraClass = "", menuId = "main-menu") {
+  return `<header class="masthead${extraClass ? ` ${extraClass}` : ""}">
+    <a class="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
+      <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg?v=20260826c"><img src="public/comunidade-0937.svg?v=20260826c" alt="Comunidade 0937"></picture>
+    </a>
+    ${desktopTabsMarkup()}
+    <div class="header-menu">
+      <button class="header-search-button" aria-label="Pesquisar">${icons.search}</button>
+      <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="${menuId}" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
+      ${state.menuOpen ? menuMarkup(menuId) : ""}
+    </div>
+  </header>`;
+}
+
+function lotMobileHeaderMarkup() {
+  return `<header class="masthead movement-header lot-mobile-header">
+    <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
+    <h1>LOTE</h1>
+    <div class="header-menu movement-header-menu">
+      <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="lot-mobile-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
+      ${state.menuOpen ? menuMarkup("lot-mobile-menu") : ""}
+    </div>
+  </header>`;
+}
+
 function headerMarkup() {
-  if (state.mode === "entrada" || state.mode === "saida" || state.mode === "lote") {
+  if (state.mode === "entrada" || state.mode === "saida") {
     return `<header class="masthead movement-header">
       <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
-      <h1>${state.mode === "entrada" ? "ENTRADA" : state.mode === "saida" ? "SAÍDA" : "LOTE"}</h1>
+      <h1>${state.mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h1>
       ${desktopTabsMarkup()}
       <div class="header-menu movement-header-menu">
         <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="movement-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
@@ -213,17 +238,8 @@ function headerMarkup() {
       </div>
     </header>`;
   }
-  return `<header class="masthead">
-    <a class="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
-      <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg?v=20260826c"><img src="public/comunidade-0937.svg?v=20260826c" alt="Comunidade 0937"></picture>
-    </a>
-    ${desktopTabsMarkup()}
-    <div class="header-menu">
-      <button class="header-search-button" aria-label="Pesquisar">${icons.search}</button>
-      <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="main-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
-      ${state.menuOpen ? menuMarkup("main-menu") : ""}
-    </div>
-  </header>`;
+  if (state.mode === "lote") return `${mainHeaderMarkup("lot-desktop-header", "lot-desktop-menu")}${lotMobileHeaderMarkup()}`;
+  return mainHeaderMarkup();
 }
 
 function optionCard(mode, title, description, image) {
