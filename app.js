@@ -789,6 +789,26 @@ function setBatchItemQuantity(item, requestedQuantity) {
 }
 
 async function ensureBatchColumnAndCheckDuplicate(batchId) {
+  const metadataResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets(properties(sheetId,title,gridProperties(columnCount)))`, {
+    headers: { Authorization: `Bearer ${state.accessToken}` },
+    cache: "no-store",
+  });
+  if (metadataResponse.status === 401) throw new Error("AUTH_EXPIRED");
+  if (metadataResponse.status === 403) throw new Error("READ_DENIED");
+  if (!metadataResponse.ok) throw new Error(`SHEETS_METADATA_ERROR_${metadataResponse.status}`);
+  const movementSheet = (await metadataResponse.json()).sheets?.find(sheet => sheet.properties?.title === "Movimentos");
+  if (!movementSheet) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
+  const currentColumnCount = Number(movementSheet.properties.gridProperties?.columnCount) || 0;
+  if (currentColumnCount < 16) {
+    const dimensionResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: [{ appendDimension: { sheetId: movementSheet.properties.sheetId, dimension: "COLUMNS", length: 16 - currentColumnCount } }] }),
+    });
+    if (dimensionResponse.status === 401) throw new Error("AUTH_EXPIRED");
+    if (dimensionResponse.status === 403) throw new Error("WRITE_DENIED");
+    if (!dimensionResponse.ok) throw new Error(`SHEETS_DIMENSION_ERROR_${dimensionResponse.status}`);
+  }
   const range = encodeURIComponent("Movimentos!P1:P");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
     headers: { Authorization: `Bearer ${state.accessToken}` },
@@ -1454,7 +1474,9 @@ document.addEventListener("click", async event => {
         LOCATION_STOCK_CHANGED: `O stock por localização de ${error.setCode || "um conjunto"} foi alterado. Revê o lote.`,
         BATCH_HEADER_CONFLICT: "A coluna P de Movimentos já tem outro cabeçalho. Deve chamar-se BatchID.",
       };
-      const message = error.message === "INSUFFICIENT_STOCK" ? `Stock insuficiente para ${error.setCode}. Disponível: ${Math.max(0, error.availableStock)}.` : messages[error.message] || "Não foi possível concluir o lote. Tenta novamente.";
+      const message = error.message === "INSUFFICIENT_STOCK"
+        ? `Stock insuficiente para ${error.setCode}. Disponível: ${Math.max(0, error.availableStock)}.`
+        : messages[error.message] || (error.message.startsWith("SHEETS_") ? `O Google Sheets recusou a operação (${error.message}).` : "Não foi possível concluir o lote. Tenta novamente.");
       showMovementNotice(message, "error");
     }
     render();
