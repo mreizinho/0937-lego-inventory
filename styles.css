@@ -6,13 +6,13 @@
 
 /* Marca original da Comunidade 0937, conforme o cabeçalho do fórum. */
 .masthead .brand{align-self:stretch;align-items:center;min-width:260px;gap:0;text-decoration:none}
-.masthead .brand img{display:block;width:125px;height:auto;max-height:96px;object-fit:contain}
+.masthead .brand img{display:block;width:128px;height:auto;max-height:96px;object-fit:contain}
 @media(max-width:850px){.masthead .brand{min-width:auto}.masthead .brand img{width:76px;max-height:68px}}
 
 /* Cabeçalho ao estilo do fórum: barra mais baixa, tabs na base e marca sobre o branco. */
 .masthead{height:88px;position:relative;overflow:visible}
 .masthead .brand{position:relative;align-self:auto;height:88px;z-index:2}
-.masthead .brand img{position:absolute;top:4px;left:0;width:125px;max-height:none}
+.masthead .brand img{position:absolute;top:4px;left:0;width:128px;max-height:none}
 .masthead nav{height:100%;align-self:auto;align-items:flex-end}
 .masthead nav a{height:36px;padding:0 15px;border:0}
 .masthead nav a:hover,.masthead nav a.active{border:0}
