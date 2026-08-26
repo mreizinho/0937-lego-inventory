@@ -317,7 +317,21 @@ function googleSheetsMarkup() {
 function bricksetLastUpdated() {
   const cellValue = String(state.catalogRows?.[0]?.[0] ?? "").trim();
   const updatedAt = cellValue.replace(/^Last updated:\s*/i, "").trim();
-  return updatedAt || (state.checkingCredentials ? "A carregar…" : "Não disponível");
+  if (!updatedAt) return state.checkingCredentials ? "A carregar…" : "Não disponível";
+  const utcMatch = updatedAt.match(/^(\d{2})-(\d{2})-(\d{4})@(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!utcMatch) return updatedAt;
+  const [, day, month, year, hour, minute, second = "00"] = utcMatch;
+  const utcDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)));
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("pt-PT", {
+    timeZone: "Europe/Lisbon",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(utcDate).filter(part => part.type !== "literal").map(part => [part.type, part.value]));
+  return `${parts.day}-${parts.month}-${parts.year}@${parts.hour}:${parts.minute}`;
 }
 
 function bricksetUpdateMarkup() {
