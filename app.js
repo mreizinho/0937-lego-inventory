@@ -157,7 +157,7 @@ function headerMarkup() {
   }
   return `<header class="masthead">
     <a class="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
-      <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg"><img src="public/comunidade-0937.svg" alt="Comunidade 0937"></picture>
+      <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg?v=20260826"><img src="public/comunidade-0937.svg?v=20260826" alt="Comunidade 0937"></picture>
     </a>
     ${desktopTabsMarkup()}
     <div class="header-menu">
