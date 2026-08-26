@@ -690,20 +690,6 @@ function updateLotMobileHeaderSummary() {
   title.textContent = summaryHasScrolledAway ? `${label} (${state.batch.items.length} Refs. - ${batchUnitCount()} un.)` : label;
 }
 
-function waitForMobileSwipeAnimation(element) {
-  return new Promise(resolve => {
-    let timer;
-    const finish = event => {
-      if (event && event.target !== element) return;
-      window.clearTimeout(timer);
-      element.removeEventListener("animationend", finish);
-      resolve();
-    };
-    element.addEventListener("animationend", finish, { once: true });
-    timer = window.setTimeout(finish, 260);
-  });
-}
-
 function waitForMobileSwipeTransition(element) {
   return new Promise(resolve => {
     let timer;
@@ -720,9 +706,8 @@ function waitForMobileSwipeTransition(element) {
 
 function clearMobileSwipeStyles(element) {
   if (!element) return;
-  element.classList.remove("mobile-swipe-dragging", "mobile-swipe-completing", "mobile-swipe-returning");
+  element.classList.remove("mobile-swipe-adjacent", "mobile-swipe-dragging", "mobile-swipe-completing", "mobile-swipe-returning");
   element.style.removeProperty("transform");
-  element.style.removeProperty("opacity");
 }
 
 function mobileSwipeVisualOffset(deltaX) {
@@ -731,59 +716,122 @@ function mobileSwipeVisualOffset(deltaX) {
   return MOBILE_SWIPE_MODES[currentIndex + direction] === undefined ? deltaX * .22 : deltaX;
 }
 
-async function returnMobileSwipeContent(element) {
+function mobileSwipeMarkupForMode(mode) {
+  if (mode === null) return optionsMarkup();
+  if (mode === "sheets") return googleSheetsMarkup();
+  return bricksetUpdateMarkup();
+}
+
+function prepareMobileSwipePreview(gesture, direction) {
+  if (!gesture?.content) return null;
+  const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
+  const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
+  if (!gesture.stage) {
+    const stage = document.createElement("div");
+    stage.className = "mobile-swipe-stage";
+    gesture.content.before(stage);
+    stage.appendChild(gesture.content);
+    gesture.stage = stage;
+  }
+  if (gesture.previewMode === nextMode && gesture.incoming) return gesture.incoming;
+  gesture.incoming?.remove();
+  gesture.incoming = null;
+  gesture.previewMode = undefined;
+  if (currentIndex < 0 || nextMode === undefined) return null;
+  const incoming = document.createElement("div");
+  incoming.className = "app-content mobile-swipe-adjacent mobile-swipe-dragging";
+  incoming.setAttribute("aria-hidden", "true");
+  incoming.innerHTML = mobileSwipeMarkupForMode(nextMode);
+  gesture.stage.appendChild(incoming);
+  gesture.incoming = incoming;
+  gesture.previewMode = nextMode;
+  return incoming;
+}
+
+function updateMobileSwipePreview(gesture, deltaX) {
+  const direction = deltaX < 0 ? 1 : -1;
+  const offset = mobileSwipeVisualOffset(deltaX);
+  const incoming = prepareMobileSwipePreview(gesture, direction);
+  const width = gesture.stage?.getBoundingClientRect().width || window.innerWidth;
+  gesture.direction = direction;
+  gesture.offset = offset;
+  gesture.width = width;
+  gesture.content.classList.add("mobile-swipe-dragging");
+  gesture.content.style.transform = `translate3d(${offset}px,0,0)`;
+  if (incoming) incoming.style.transform = `translate3d(${offset + (direction > 0 ? width : -width)}px,0,0)`;
+}
+
+function releaseMobileSwipeStage(gesture) {
+  if (!gesture) return;
+  clearMobileSwipeStyles(gesture.content);
+  clearMobileSwipeStyles(gesture.incoming);
+  gesture.incoming?.remove();
+  if (gesture.stage?.isConnected && gesture.content?.isConnected) {
+    gesture.stage.before(gesture.content);
+    gesture.stage.remove();
+  }
+  gesture.stage = null;
+  gesture.incoming = null;
+}
+
+async function returnMobileSwipeContent(gesture) {
+  const element = gesture?.content;
   if (!element) return;
   mobileSwipeAnimating = true;
   try {
+    if (window.matchMedia("(prefers-reduced-motion:reduce)").matches) return;
     element.classList.remove("mobile-swipe-dragging");
     element.classList.add("mobile-swipe-returning");
+    gesture.incoming?.classList.remove("mobile-swipe-dragging");
+    gesture.incoming?.classList.add("mobile-swipe-returning");
     element.getBoundingClientRect();
     element.style.transform = "translate3d(0,0,0)";
+    if (gesture.incoming) gesture.incoming.style.transform = `translate3d(${gesture.direction > 0 ? gesture.width : -gesture.width}px,0,0)`;
     await waitForMobileSwipeTransition(element);
   } finally {
-    clearMobileSwipeStyles(element);
+    releaseMobileSwipeStage(gesture);
     mobileSwipeAnimating = false;
   }
 }
 
-async function activateAdjacentMobileTab(direction, outgoing, startOffset = 0) {
+async function activateAdjacentMobileTab(direction, gesture) {
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
   const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
   if (currentIndex < 0 || nextMode === undefined || mobileSwipeAnimating) {
-    await returnMobileSwipeContent(outgoing);
+    await returnMobileSwipeContent(gesture);
     return;
   }
   const action = nextMode === null ? "home" : nextMode === "sheets" ? "show-sheets" : "show-update";
   const tab = document.querySelector(`.desktop-tabs [data-action="${action}"]`);
   if (!tab) {
-    await returnMobileSwipeContent(outgoing);
+    await returnMobileSwipeContent(gesture);
     return;
   }
   if (window.matchMedia("(prefers-reduced-motion:reduce)").matches) {
-    clearMobileSwipeStyles(outgoing);
+    releaseMobileSwipeStage(gesture);
     tab.click();
     return;
   }
   mobileSwipeAnimating = true;
   try {
-    if (outgoing) {
-      outgoing.classList.remove("mobile-swipe-dragging");
-      outgoing.classList.add("mobile-swipe-completing");
-      outgoing.getBoundingClientRect();
-      outgoing.style.transform = `translate3d(${startOffset + (direction > 0 ? -30 : 30)}px,0,0)`;
-      outgoing.style.opacity = "0";
-      await waitForMobileSwipeTransition(outgoing);
-    }
+    const outgoing = gesture.content;
+    const directionChanged = gesture.direction !== direction;
+    const incoming = prepareMobileSwipePreview(gesture, direction);
+    const width = gesture.stage?.getBoundingClientRect().width || gesture.width || window.innerWidth;
+    if (directionChanged && incoming) incoming.style.transform = `translate3d(${gesture.offset + (direction > 0 ? width : -width)}px,0,0)`;
+    gesture.direction = direction;
+    gesture.width = width;
+    outgoing.classList.remove("mobile-swipe-dragging");
+    outgoing.classList.add("mobile-swipe-completing");
+    incoming?.classList.remove("mobile-swipe-dragging");
+    incoming?.classList.add("mobile-swipe-completing");
+    outgoing.getBoundingClientRect();
+    outgoing.style.transform = `translate3d(${direction > 0 ? -width : width}px,0,0)`;
+    if (incoming) incoming.style.transform = "translate3d(0,0,0)";
+    await waitForMobileSwipeTransition(outgoing);
     tab.click();
-    const incoming = document.querySelector(".app-content");
-    const incomingClass = direction > 0 ? "mobile-swipe-enter-right" : "mobile-swipe-enter-left";
-    incoming?.classList.add(incomingClass);
-    if (incoming) {
-      await waitForMobileSwipeAnimation(incoming);
-      incoming.classList.remove(incomingClass);
-    }
   } finally {
-    clearMobileSwipeStyles(outgoing);
+    releaseMobileSwipeStage(gesture);
     mobileSwipeAnimating = false;
   }
 }
@@ -1615,7 +1663,7 @@ document.addEventListener("touchstart", event => {
     return;
   }
   const touch = event.touches[0];
-  mobileSwipeGesture = { x: touch.clientX, y: touch.clientY, startedAt: performance.now(), horizontal: false, cancelled: false, offset: 0, content: document.querySelector(".app-content") };
+  mobileSwipeGesture = { x: touch.clientX, y: touch.clientY, startedAt: performance.now(), horizontal: false, cancelled: false, direction: 0, offset: 0, width: 0, stage: null, incoming: null, content: document.querySelector(".app-content") };
 }, { passive: true });
 
 document.addEventListener("touchmove", event => {
@@ -1629,9 +1677,7 @@ document.addEventListener("touchmove", event => {
   if (!mobileSwipeGesture.cancelled && horizontalDistance > 12 && horizontalDistance > verticalDistance * 1.15) mobileSwipeGesture.horizontal = true;
   if (mobileSwipeGesture.horizontal) {
     event.preventDefault();
-    mobileSwipeGesture.offset = mobileSwipeVisualOffset(deltaX);
-    mobileSwipeGesture.content?.classList.add("mobile-swipe-dragging");
-    if (mobileSwipeGesture.content) mobileSwipeGesture.content.style.transform = `translate3d(${mobileSwipeGesture.offset}px,0,0)`;
+    updateMobileSwipePreview(mobileSwipeGesture, deltaX);
   }
 }, { passive: false });
 
@@ -1647,14 +1693,14 @@ document.addEventListener("touchend", event => {
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
   const hasAdjacentTab = MOBILE_SWIPE_MODES[currentIndex + direction] !== undefined;
   const shouldNavigate = gesture.horizontal && hasAdjacentTab && Math.abs(deltaX) >= 65 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25 && performance.now() - gesture.startedAt <= 900;
-  if (shouldNavigate) void activateAdjacentMobileTab(direction, gesture.content, gesture.offset);
-  else if (gesture.horizontal) void returnMobileSwipeContent(gesture.content);
+  if (shouldNavigate) void activateAdjacentMobileTab(direction, gesture);
+  else if (gesture.horizontal) void returnMobileSwipeContent(gesture);
 }, { passive: false });
 
 document.addEventListener("touchcancel", () => {
   const gesture = mobileSwipeGesture;
   mobileSwipeGesture = null;
-  if (gesture?.horizontal) void returnMobileSwipeContent(gesture.content);
+  if (gesture?.horizontal) void returnMobileSwipeContent(gesture);
 }, { passive: true });
 
 window.addEventListener("resize", () => {
