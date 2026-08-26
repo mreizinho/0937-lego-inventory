@@ -413,6 +413,7 @@ function batchScanMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel">
     <div class="batch-heading"><p>${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
     <div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div>
+    <hr class="batch-keypad-divider">
     <div class="batch-counter"><strong>${units}</strong><span>${units === 1 ? "unidade" : "unidades"}</span><i></i><strong>${references}</strong><span>${references === 1 ? "referência" : "referências"}</span></div>
     ${batchMiniListMarkup()}
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="secondary" data-action="batch-review"${references ? "" : " disabled"}>PAUSAR / REVER</button><button type="button" class="primary" data-action="batch-conditions"${references ? "" : " disabled"}>CONCLUIR</button></div>
