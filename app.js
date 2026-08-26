@@ -1447,7 +1447,7 @@ document.addEventListener("click", async event => {
     const before = Number(item.qty);
     setBatchItemQuantity(item, before + change);
     if (action === "batch-item-increase" && Number(item.qty) === before) showMovementNotice(`Stock máximo atingido para ${item.code}.`, "error");
-    render();
+    renderPreservingContentScroll();
     return;
   }
   if (action === "batch-item-remove") {
