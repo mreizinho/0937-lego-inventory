@@ -151,6 +151,7 @@ let barcodeFrameCanvas = null;
 let movementNoticeTimer = null;
 let mobileSwipeGesture = null;
 let mobileSwipeAnimating = false;
+let batchKeypadWindow = null;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -166,6 +167,8 @@ const icons = {
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg>',
   lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>',
   scanner: '<svg class="scanner-glyph" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 3H5a2 2 0 0 0-2 2v4M19 3h4a2 2 0 0 1 2 2v4M9 25H5a2 2 0 0 1-2-2v-4M19 25h4a2 2 0 0 0 2-2v-4M7 9v10M10 9v10M14 9v10M17 9v10M21 9v10"/></svg>',
+  popout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8"/><path d="M10 6H5a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></svg>',
+  dock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M10 20H4v-6M4 20l8-8"/><path d="M14 18h5a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v5"/></svg>',
 };
 
 function escapeHtml(value) {
@@ -410,18 +413,150 @@ function batchMiniListMarkup() {
   return `<div class="batch-mini-list">${state.batch.items.slice(-4).reverse().map(item => `<div><span><b>${escapeHtml(item.code)}</b><small>${escapeHtml(item.name)}</small></span><strong>${item.qty} un.</strong></div>`).join("")}</div>`;
 }
 
+function isBatchKeypadPoppedOut() {
+  return Boolean(batchKeypadWindow && !batchKeypadWindow.closed);
+}
+
 function batchScanMarkup() {
   const references = state.batch.items.length;
   const units = batchUnitCount();
-  return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel">
+  const keypadPoppedOut = isBatchKeypadPoppedOut();
+  const keypadSection = keypadPoppedOut ? "" : `
     <div class="batch-heading"><p>${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
-    <div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div>
-    <hr class="batch-keypad-divider">
+    <div class="batch-keypad-shell"><button type="button" class="batch-keypad-popout-button" data-action="batch-keypad-popout" aria-label="Abrir teclado numa janela sempre visível" title="Abrir teclado numa janela sempre visível">${icons.popout}</button><div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div></div>
+    <hr class="batch-keypad-divider">`;
+  return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel${keypadPoppedOut ? " batch-keypad-detached" : ""}">
+    ${keypadSection}
     <div class="batch-counter"><strong>${units}</strong><span>${units === 1 ? "unidade" : "unidades"}</span><i></i><strong>${references}</strong><span>${references === 1 ? "referência" : "referências"}</span></div>
     <p class="batch-mini-title">Últimas picagens</p>
     ${batchMiniListMarkup()}
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="secondary" data-action="batch-review"${references ? "" : " disabled"}>PAUSAR / REVER</button><button type="button" class="primary" data-action="batch-conditions"${references ? "" : " disabled"}>CONCLUIR</button></div>
   </section></section>`;
+}
+
+function batchKeypadPopoutMarkup() {
+  return `<div class="batch-keypad-popout-root">
+    <header class="batch-keypad-popout-header"><strong>TECLADO DO LOTE</strong><button type="button" data-action="batch-keypad-dock">${icons.dock}<span>DOCK</span></button></header>
+    <main class="batch-keypad-popout-main"><div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div></main>
+  </div>`;
+}
+
+function copyStylesToBatchKeypadWindow(targetDocument) {
+  document.querySelectorAll('link[rel="stylesheet"],style').forEach(source => {
+    const clone = source.cloneNode(true);
+    if (clone.tagName === "LINK") clone.href = source.href;
+    targetDocument.head.append(clone);
+  });
+}
+
+function renderBatchKeypadWindow() {
+  if (!isBatchKeypadPoppedOut()) return;
+  const root = batchKeypadWindow.document.querySelector(".batch-keypad-popout-root");
+  if (root) root.outerHTML = batchKeypadPopoutMarkup();
+}
+
+function closeBatchKeypadPopout(renderMain = true) {
+  const popoutWindow = batchKeypadWindow;
+  batchKeypadWindow = null;
+  if (popoutWindow && !popoutWindow.closed) popoutWindow.close();
+  if (renderMain) render();
+}
+
+async function handleBatchKeypadPopoutClick(event) {
+  const digit = event.target.closest("[data-digit]");
+  if (digit) {
+    state.query += digit.dataset.digit;
+    state.selected = null;
+    renderBatchKeypadWindow();
+    return;
+  }
+  const action = event.target.closest("[data-action]")?.dataset.action;
+  if (!action) return;
+  if (action === "batch-keypad-dock") {
+    closeBatchKeypadPopout();
+    return;
+  }
+  if (action === "delete") {
+    state.query = state.query.slice(0, -1);
+    state.selected = null;
+    renderBatchKeypadWindow();
+    return;
+  }
+  if (action === "clear") {
+    Object.assign(state, { query: "", selected: null });
+    renderBatchKeypadWindow();
+    return;
+  }
+  if (action === "batch-add-code") {
+    await addCodeToBatch(state.query);
+    return;
+  }
+  if (action === "scanner") {
+    closeBatchKeypadPopout();
+    await openBarcodeScanner();
+  }
+}
+
+async function handleBatchKeypadPopoutKeydown(event) {
+  if (/^\d$/.test(event.key)) {
+    event.preventDefault();
+    state.query += event.key;
+    state.selected = null;
+    renderBatchKeypadWindow();
+    return;
+  }
+  if (event.key === "Backspace") {
+    event.preventDefault();
+    state.query = state.query.slice(0, -1);
+    state.selected = null;
+    renderBatchKeypadWindow();
+    return;
+  }
+  if (event.key === "Escape") {
+    event.preventDefault();
+    Object.assign(state, { query: "", selected: null });
+    renderBatchKeypadWindow();
+    return;
+  }
+  if (event.key === "Enter") {
+    event.preventDefault();
+    await addCodeToBatch(state.query);
+  }
+}
+
+async function openBatchKeypadPopout() {
+  if (!window.matchMedia("(min-width:851px)").matches) return;
+  if (isBatchKeypadPoppedOut()) {
+    batchKeypadWindow.focus();
+    return;
+  }
+  if (!window.documentPictureInPicture?.requestWindow) {
+    showMovementNotice("Este navegador não suporta a janela de teclado always on top. Usa uma versão atual do Chrome ou Edge.", "error");
+    render();
+    return;
+  }
+  try {
+    const popoutWindow = await window.documentPictureInPicture.requestWindow({ width: 500, height: 640, disallowReturnToOpener: true });
+    batchKeypadWindow = popoutWindow;
+    const popoutDocument = popoutWindow.document;
+    popoutDocument.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teclado do lote</title>';
+    copyStylesToBatchKeypadWindow(popoutDocument);
+    popoutDocument.documentElement.className = "batch-keypad-popout-html";
+    popoutDocument.body.className = "batch-keypad-popout-body";
+    popoutDocument.body.innerHTML = batchKeypadPopoutMarkup();
+    popoutDocument.addEventListener("click", handleBatchKeypadPopoutClick);
+    popoutDocument.addEventListener("keydown", handleBatchKeypadPopoutKeydown);
+    popoutWindow.addEventListener("pagehide", () => {
+      if (batchKeypadWindow !== popoutWindow) return;
+      batchKeypadWindow = null;
+      if (document.querySelector("#app")) render();
+    }, { once: true });
+    render();
+  } catch {
+    batchKeypadWindow = null;
+    showMovementNotice("Não foi possível abrir a janela de teclado always on top.", "error");
+    render();
+  }
 }
 
 function batchAllocationMarkup(item) {
@@ -481,12 +616,14 @@ function resultMarkup(item) {
 }
 
 function render() {
+  if (isBatchKeypadPoppedOut() && (state.mode !== "lote" || state.batch.phase !== "scan")) closeBatchKeypadPopout(false);
   const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.mode === "lote" ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
   const appContent = document.querySelector(".app-content");
   appContent?.addEventListener("scroll", updateLotMobileHeaderSummary, { passive: true });
   updateLotMobileHeaderSummary();
+  renderBatchKeypadWindow();
 }
 
 function updateLotMobileHeaderSummary() {
@@ -1366,6 +1503,10 @@ document.addEventListener("touchcancel", () => {
   if (gesture?.horizontal) void returnMobileSwipeContent(gesture.content);
 }, { passive: true });
 
+window.addEventListener("resize", () => {
+  if (isBatchKeypadPoppedOut() && !window.matchMedia("(min-width:851px)").matches) closeBatchKeypadPopout();
+});
+
 document.addEventListener("click", async event => {
   const modeButton = event.target.closest("[data-mode]");
   if (modeButton && !modeButton.disabled) {
@@ -1396,6 +1537,7 @@ document.addEventListener("click", async event => {
   }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
+  if (action === "batch-keypad-popout") { await openBatchKeypadPopout(); return; }
   if (action === "scanner") { openBarcodeScanner(); return; }
   if (action === "close-scanner") { window.history.back(); return; }
   if (action === "focus-camera") { focusBarcodeCamera(event); return; }
