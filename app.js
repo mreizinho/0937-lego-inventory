@@ -135,7 +135,10 @@ function renderPreservingContentScroll() {
   const scrollTop = document.querySelector(".app-content")?.scrollTop || 0;
   render();
   const content = document.querySelector(".app-content");
-  if (content) content.scrollTop = scrollTop;
+  if (content) {
+    content.scrollTop = scrollTop;
+    updateLotMobileHeaderSummary();
+  }
 }
 
 let barcodeStream = null;
@@ -218,7 +221,7 @@ function mainHeaderMarkup(extraClass = "", menuId = "main-menu") {
 function lotMobileHeaderMarkup() {
   return `<header class="masthead movement-header lot-mobile-header">
     <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
-    <h1>LOTE</h1>
+    <h1 data-lot-mobile-title>LOTE</h1>
     <div class="header-menu movement-header-menu">
       <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="lot-mobile-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
       ${state.menuOpen ? menuMarkup("lot-mobile-menu") : ""}
@@ -481,6 +484,18 @@ function render() {
   const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.mode === "lote" ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
+  const appContent = document.querySelector(".app-content");
+  appContent?.addEventListener("scroll", updateLotMobileHeaderSummary, { passive: true });
+  updateLotMobileHeaderSummary();
+}
+
+function updateLotMobileHeaderSummary() {
+  const title = document.querySelector("[data-lot-mobile-title]");
+  if (!title) return;
+  const content = document.querySelector(".app-content");
+  const summary = document.querySelector(".batch-review-panel .batch-heading span");
+  const summaryHasScrolledAway = Boolean(content && summary && summary.getBoundingClientRect().bottom <= content.getBoundingClientRect().top);
+  title.textContent = summaryHasScrolledAway ? `LOTE: ${state.batch.items.length} Refs - ${batchUnitCount()} un.` : "LOTE";
 }
 
 function waitForMobileSwipeAnimation(element) {
