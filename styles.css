@@ -138,11 +138,9 @@ html,body{height:100%;overflow:hidden}
 .app-shell{height:100dvh;min-height:0;padding-bottom:0;display:flex;flex-direction:column;overflow:hidden}
 .masthead{z-index:50;flex:0 0 auto}
 .app-content{flex:1;min-height:0;overflow-y:auto;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch}
-@keyframes mobile-swipe-exit-left{from{transform:translateX(0);opacity:1}to{transform:translateX(-30px);opacity:0}}
-@keyframes mobile-swipe-exit-right{from{transform:translateX(0);opacity:1}to{transform:translateX(30px);opacity:0}}
 @keyframes mobile-swipe-enter-right{from{transform:translateX(30px);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes mobile-swipe-enter-left{from{transform:translateX(-30px);opacity:0}to{transform:translateX(0);opacity:1}}
-@media(max-width:850px){.app-content{touch-action:pan-y pinch-zoom;overscroll-behavior-x:contain}.app-content.mobile-swipe-exit-left{animation:mobile-swipe-exit-left 160ms ease-in both;pointer-events:none}.app-content.mobile-swipe-exit-right{animation:mobile-swipe-exit-right 160ms ease-in both;pointer-events:none}.app-content.mobile-swipe-enter-right{animation:mobile-swipe-enter-right 190ms ease-out both;pointer-events:none}.app-content.mobile-swipe-enter-left{animation:mobile-swipe-enter-left 190ms ease-out both;pointer-events:none}}
+@media(max-width:850px){.app-content{touch-action:pan-y pinch-zoom;overscroll-behavior-x:contain}.app-content.mobile-swipe-dragging{transition:none;will-change:transform;user-select:none}.app-content.mobile-swipe-completing{transition:transform 160ms ease-in,opacity 160ms ease-in;will-change:transform,opacity;pointer-events:none}.app-content.mobile-swipe-returning{transition:transform 180ms cubic-bezier(.2,.75,.25,1);will-change:transform;pointer-events:none}.app-content.mobile-swipe-enter-right{animation:mobile-swipe-enter-right 190ms ease-out both;pointer-events:none}.app-content.mobile-swipe-enter-left{animation:mobile-swipe-enter-left 190ms ease-out both;pointer-events:none}}
 .login-required{position:fixed;z-index:80;left:50%;bottom:max(16px,env(safe-area-inset-bottom));width:min(520px,calc(100vw - 32px));margin:0;transform:translateX(-50%);border-radius:4px;box-shadow:0 7px 22px rgba(35,40,44,.18)}
 .options-panel{padding-top:20px}
 .options-prompt{margin:0 0 4px;text-align:center;color:#777;font-size:16px}

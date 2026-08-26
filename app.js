@@ -329,22 +329,76 @@ function waitForMobileSwipeAnimation(element) {
   });
 }
 
-async function activateAdjacentMobileTab(direction) {
+function waitForMobileSwipeTransition(element) {
+  return new Promise(resolve => {
+    let timer;
+    const finish = event => {
+      if (event && (event.target !== element || event.propertyName !== "transform")) return;
+      window.clearTimeout(timer);
+      element.removeEventListener("transitionend", finish);
+      resolve();
+    };
+    element.addEventListener("transitionend", finish);
+    timer = window.setTimeout(finish, 260);
+  });
+}
+
+function clearMobileSwipeStyles(element) {
+  if (!element) return;
+  element.classList.remove("mobile-swipe-dragging", "mobile-swipe-completing", "mobile-swipe-returning");
+  element.style.removeProperty("transform");
+  element.style.removeProperty("opacity");
+}
+
+function mobileSwipeVisualOffset(deltaX) {
+  const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
+  const direction = deltaX < 0 ? 1 : -1;
+  return MOBILE_SWIPE_MODES[currentIndex + direction] === undefined ? deltaX * .22 : deltaX;
+}
+
+async function returnMobileSwipeContent(element) {
+  if (!element) return;
+  mobileSwipeAnimating = true;
+  try {
+    element.classList.remove("mobile-swipe-dragging");
+    element.classList.add("mobile-swipe-returning");
+    element.getBoundingClientRect();
+    element.style.transform = "translate3d(0,0,0)";
+    await waitForMobileSwipeTransition(element);
+  } finally {
+    clearMobileSwipeStyles(element);
+    mobileSwipeAnimating = false;
+  }
+}
+
+async function activateAdjacentMobileTab(direction, outgoing, startOffset = 0) {
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
   const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
-  if (currentIndex < 0 || nextMode === undefined || mobileSwipeAnimating) return;
+  if (currentIndex < 0 || nextMode === undefined || mobileSwipeAnimating) {
+    await returnMobileSwipeContent(outgoing);
+    return;
+  }
   const action = nextMode === null ? "home" : nextMode === "sheets" ? "show-sheets" : "show-update";
   const tab = document.querySelector(`.desktop-tabs [data-action="${action}"]`);
-  if (!tab) return;
+  if (!tab) {
+    await returnMobileSwipeContent(outgoing);
+    return;
+  }
   if (window.matchMedia("(prefers-reduced-motion:reduce)").matches) {
+    clearMobileSwipeStyles(outgoing);
     tab.click();
     return;
   }
   mobileSwipeAnimating = true;
   try {
-    const outgoing = document.querySelector(".app-content");
-    outgoing?.classList.add(direction > 0 ? "mobile-swipe-exit-left" : "mobile-swipe-exit-right");
-    if (outgoing) await waitForMobileSwipeAnimation(outgoing);
+    if (outgoing) {
+      outgoing.classList.remove("mobile-swipe-dragging");
+      outgoing.classList.add("mobile-swipe-completing");
+      outgoing.getBoundingClientRect();
+      outgoing.style.transform = `translate3d(${startOffset + (direction > 0 ? -30 : 30)}px,0,0)`;
+      outgoing.style.opacity = "0";
+      await waitForMobileSwipeTransition(outgoing);
+    }
     tab.click();
     const incoming = document.querySelector(".app-content");
     const incomingClass = direction > 0 ? "mobile-swipe-enter-right" : "mobile-swipe-enter-left";
@@ -354,6 +408,7 @@ async function activateAdjacentMobileTab(direction) {
       incoming.classList.remove(incomingClass);
     }
   } finally {
+    clearMobileSwipeStyles(outgoing);
     mobileSwipeAnimating = false;
   }
 }
@@ -911,7 +966,7 @@ document.addEventListener("touchstart", event => {
     return;
   }
   const touch = event.touches[0];
-  mobileSwipeGesture = { x: touch.clientX, y: touch.clientY, startedAt: performance.now(), horizontal: false, cancelled: false };
+  mobileSwipeGesture = { x: touch.clientX, y: touch.clientY, startedAt: performance.now(), horizontal: false, cancelled: false, offset: 0, content: document.querySelector(".app-content") };
 }, { passive: true });
 
 document.addEventListener("touchmove", event => {
@@ -923,7 +978,12 @@ document.addEventListener("touchmove", event => {
   const verticalDistance = Math.abs(deltaY);
   if (!mobileSwipeGesture.horizontal && verticalDistance > 12 && verticalDistance > horizontalDistance) mobileSwipeGesture.cancelled = true;
   if (!mobileSwipeGesture.cancelled && horizontalDistance > 12 && horizontalDistance > verticalDistance * 1.15) mobileSwipeGesture.horizontal = true;
-  if (mobileSwipeGesture.horizontal) event.preventDefault();
+  if (mobileSwipeGesture.horizontal) {
+    event.preventDefault();
+    mobileSwipeGesture.offset = mobileSwipeVisualOffset(deltaX);
+    mobileSwipeGesture.content?.classList.add("mobile-swipe-dragging");
+    if (mobileSwipeGesture.content) mobileSwipeGesture.content.style.transform = `translate3d(${mobileSwipeGesture.offset}px,0,0)`;
+  }
 }, { passive: false });
 
 document.addEventListener("touchend", event => {
@@ -933,13 +993,19 @@ document.addEventListener("touchend", event => {
   if (!gesture || gesture.cancelled || !touch) return;
   const deltaX = touch.clientX - gesture.x;
   const deltaY = touch.clientY - gesture.y;
-  if (Math.abs(deltaX) < 65 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25 || performance.now() - gesture.startedAt > 900) return;
-  event.preventDefault();
-  void activateAdjacentMobileTab(deltaX < 0 ? 1 : -1);
+  if (gesture.horizontal) event.preventDefault();
+  const direction = deltaX < 0 ? 1 : -1;
+  const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
+  const hasAdjacentTab = MOBILE_SWIPE_MODES[currentIndex + direction] !== undefined;
+  const shouldNavigate = gesture.horizontal && hasAdjacentTab && Math.abs(deltaX) >= 65 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25 && performance.now() - gesture.startedAt <= 900;
+  if (shouldNavigate) void activateAdjacentMobileTab(direction, gesture.content, gesture.offset);
+  else if (gesture.horizontal) void returnMobileSwipeContent(gesture.content);
 }, { passive: false });
 
 document.addEventListener("touchcancel", () => {
+  const gesture = mobileSwipeGesture;
   mobileSwipeGesture = null;
+  if (gesture?.horizontal) void returnMobileSwipeContent(gesture.content);
 }, { passive: true });
 
 document.addEventListener("click", async event => {
