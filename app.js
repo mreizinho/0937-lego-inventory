@@ -7,6 +7,7 @@ const GOOGLE_OAUTH_SCOPE = "openid email https://www.googleapis.com/auth/spreads
 const TOKEN_KEY = "googleSheetsAccessToken";
 const TOKEN_SCOPE_KEY = "googleSheetsAccessTokenScope";
 const APP_HISTORY_ID = "0937-lego-inventory";
+const MOBILE_SWIPE_MODES = [null, "sheets", "update"];
 
 function emptyMovementForm(defaults = {}) {
   const storage = defaults.storage || "";
@@ -89,6 +90,7 @@ let quaggaScanPending = false;
 let lastQuaggaScanAt = Number.NEGATIVE_INFINITY;
 let barcodeFrameCanvas = null;
 let movementNoticeTimer = null;
+let mobileSwipeGesture = null;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -310,6 +312,20 @@ function render() {
   const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
+}
+
+function activateAdjacentMobileTab(direction) {
+  const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
+  const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
+  if (currentIndex < 0 || nextMode === undefined) return;
+  const action = nextMode === null ? "home" : nextMode === "sheets" ? "show-sheets" : "show-update";
+  document.querySelector(`.desktop-tabs [data-action="${action}"]`)?.click();
+}
+
+function canStartMobileTabSwipe(event) {
+  if (!window.matchMedia("(max-width:850px)").matches || state.menuOpen || state.scannerOpen || !MOBILE_SWIPE_MODES.includes(state.mode)) return false;
+  if (!event.target.closest?.(".app-content")) return false;
+  return !event.target.closest?.("input, textarea, select, [contenteditable='true']");
 }
 
 function normalizeHeader(value) {
@@ -852,6 +868,43 @@ async function openBarcodeScanner(addHistory = true) {
     updateScannerStatus(messages[error.name] || messages[error.message] || "Não foi possível iniciar a câmara.");
   }
 }
+
+document.addEventListener("touchstart", event => {
+  if (event.touches.length !== 1 || !canStartMobileTabSwipe(event)) {
+    mobileSwipeGesture = null;
+    return;
+  }
+  const touch = event.touches[0];
+  mobileSwipeGesture = { x: touch.clientX, y: touch.clientY, startedAt: performance.now(), horizontal: false, cancelled: false };
+}, { passive: true });
+
+document.addEventListener("touchmove", event => {
+  if (!mobileSwipeGesture || event.touches.length !== 1) return;
+  const touch = event.touches[0];
+  const deltaX = touch.clientX - mobileSwipeGesture.x;
+  const deltaY = touch.clientY - mobileSwipeGesture.y;
+  const horizontalDistance = Math.abs(deltaX);
+  const verticalDistance = Math.abs(deltaY);
+  if (!mobileSwipeGesture.horizontal && verticalDistance > 12 && verticalDistance > horizontalDistance) mobileSwipeGesture.cancelled = true;
+  if (!mobileSwipeGesture.cancelled && horizontalDistance > 12 && horizontalDistance > verticalDistance * 1.15) mobileSwipeGesture.horizontal = true;
+  if (mobileSwipeGesture.horizontal) event.preventDefault();
+}, { passive: false });
+
+document.addEventListener("touchend", event => {
+  const gesture = mobileSwipeGesture;
+  mobileSwipeGesture = null;
+  const touch = event.changedTouches[0];
+  if (!gesture || gesture.cancelled || !touch) return;
+  const deltaX = touch.clientX - gesture.x;
+  const deltaY = touch.clientY - gesture.y;
+  if (Math.abs(deltaX) < 65 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25 || performance.now() - gesture.startedAt > 900) return;
+  event.preventDefault();
+  activateAdjacentMobileTab(deltaX < 0 ? 1 : -1);
+}, { passive: false });
+
+document.addEventListener("touchcancel", () => {
+  mobileSwipeGesture = null;
+}, { passive: true });
 
 document.addEventListener("click", async event => {
   const modeButton = event.target.closest("[data-mode]");
