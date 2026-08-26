@@ -238,3 +238,4 @@ html,body{height:100%;overflow:hidden}
 .batch-actions button{font-size:18px;letter-spacing:1px}@media(max-width:850px){.batch-actions button{font-size:15px}}
 .batch-resume-prompt .batch-view-draft{border:0;background:#8b9093;color:#fff}
 .batch-actions [data-action="batch-cancel"]{background:#a65a55;color:#fff}
+.batch-remove-item{background:#1e1f20;color:#fff}
