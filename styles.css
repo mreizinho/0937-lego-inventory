@@ -236,3 +236,4 @@ html,body{height:100%;overflow:hidden}
 .batch-keypad-divider{height:1px;margin:24px 0 0;border:0;background:#e1e3e5}.batch-keypad-divider+.batch-counter{margin-top:24px}
 .batch-panel>.batch-heading{margin-left:-34px;margin-right:-34px;padding-left:34px;padding-right:34px}.batch-panel>.batch-keypad-divider{margin-left:-34px;margin-right:-34px}@media(max-width:850px){.batch-panel>.batch-heading{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.batch-panel>.batch-keypad-divider{margin-left:-16px;margin-right:-16px}}
 .batch-actions button{font-size:18px;letter-spacing:1px}@media(max-width:850px){.batch-actions button{font-size:15px}}
+.batch-resume-prompt .batch-view-draft{border:0;background:#8b9093;color:#fff}
