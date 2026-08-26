@@ -47,6 +47,7 @@
 .hamburger-button svg,.header-search-button svg{width:30px;height:30px;stroke-width:1.8}
 .header-search-button svg{stroke-width:2.7}
 .hamburger-button:hover,.header-search-button:hover{background:rgba(255,255,255,.1)}
+.hamburger-button[aria-expanded="true"],.hamburger-button[aria-expanded="true"]:hover{background:#fff;color:#444647}
 .movement-header{justify-content:center}.movement-header h1{margin:0;color:#fff;font-size:26px;line-height:1;font-weight:800;letter-spacing:.8px}.movement-header-back{position:absolute;left:max(5vw,24px);top:50%;width:46px;height:46px;padding:0;border:0;background:transparent;color:#eee;display:grid;place-items:center;transform:translateY(-50%);cursor:pointer}.movement-header-back:hover{background:rgba(255,255,255,.1)}.movement-header-back svg{width:29px;height:29px;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}.movement-header-menu{position:absolute;right:max(5vw,24px);top:0;height:100%;align-items:center}.movement-header-menu .menu-popover{top:100%}
 .menu-popover{position:absolute;right:0;top:100%;width:260px;background:#555657;border:0;box-shadow:0 10px 25px rgba(25,30,34,.28);padding:8px 0;z-index:30}
 .menu-simple-item{width:100%;min-height:44px;display:flex;align-items:center;padding:0 20px;border:0;background:transparent;color:#eee;text-align:left;font-size:15px;font-weight:400;cursor:pointer}
