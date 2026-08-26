@@ -202,10 +202,10 @@ function desktopTabsMarkup() {
 }
 
 function headerMarkup() {
-  if (state.mode === "entrada" || state.mode === "saida") {
+  if (state.mode === "entrada" || state.mode === "saida" || state.mode === "lote") {
     return `<header class="masthead movement-header">
       <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
-      <h1>${state.mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h1>
+      <h1>${state.mode === "entrada" ? "ENTRADA" : state.mode === "saida" ? "SAÍDA" : "LOTE"}</h1>
       ${desktopTabsMarkup()}
       <div class="header-menu movement-header-menu">
         <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="movement-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
@@ -1885,8 +1885,17 @@ window.addEventListener("popstate", async event => {
 
   if (state.mode === "lote") {
     state.batch = restoreBatchDraft();
-    if (historyState.step.startsWith("batch-")) state.batch.phase = historyState.step.replace("batch-", "");
-    persistBatchDraft();
+    if (historyState.step.startsWith("batch-")) {
+      state.batch.phase = historyState.step.replace("batch-", "");
+      persistBatchDraft();
+    } else if (historyState.step === "mode") {
+      if (state.batch.items.length) {
+        state.batch.resumePhase = state.batch.phase;
+        state.batch.phase = "resume";
+      } else {
+        state.batch.phase = "type";
+      }
+    }
     render();
     if (historyState.step === "scanner") openBarcodeScanner(false);
     return;
