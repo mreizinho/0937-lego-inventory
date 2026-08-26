@@ -421,7 +421,7 @@ function batchReviewMarkup() {
       <div class="batch-item-main"><span class="batch-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span><span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div><button type="button" class="batch-remove-item" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Remover ${escapeHtml(item.code)}">×</button></div>
       ${batchAllocationMarkup(item)}
     </article>`).join("")}</div>
-    <div class="batch-actions"><button type="button" class="secondary" data-action="batch-resume">RETOMAR</button><button type="button" class="secondary" data-action="batch-cancel">APAGAR</button><button type="button" class="primary" data-action="batch-conditions">CONCLUIR</button></div>
+    <div class="batch-actions"><button type="button" class="secondary" data-action="batch-resume">RETOMAR</button><button type="button" class="secondary batch-delete-action" data-action="batch-cancel">APAGAR</button><button type="button" class="primary" data-action="batch-conditions">CONCLUIR</button></div>
   </section></section>`;
 }
 
