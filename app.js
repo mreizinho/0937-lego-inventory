@@ -1036,7 +1036,7 @@ function quoteSheetName(name) {
 }
 
 async function loadSpreadsheetSheetMetadata() {
-  const metadataResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)))`, {
+  const metadataResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets(properties(sheetId,index,title,gridProperties(rowCount,columnCount)))`, {
     headers: { Authorization: `Bearer ${state.accessToken}` },
     cache: "no-store",
   });
@@ -1117,13 +1117,14 @@ async function prepareInventorySheet() {
   const movementSheet = findSheetByName(sheets, "Movimentos");
   if (!movementSheet) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
   let inventorySheet = findSheetByName(sheets, sheetName);
+  const lastSheetIndex = sheets.reduce((highest, sheet) => Math.max(highest, Number(sheet.properties?.index) || 0), -1) + 1;
 
   if (inventorySheet && !state.batch.sheetCreated) throw new Error("INVENTORY_SHEET_EXISTS");
   if (!inventorySheet) {
     const duplicateResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
       method: "POST",
       headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ requests: [{ duplicateSheet: { sourceSheetId: movementSheet.properties.sheetId, newSheetName: sheetName } }] }),
+      body: JSON.stringify({ requests: [{ duplicateSheet: { sourceSheetId: movementSheet.properties.sheetId, insertSheetIndex: lastSheetIndex, newSheetName: sheetName } }] }),
     });
     if (duplicateResponse.status === 401) throw new Error("AUTH_EXPIRED");
     if (duplicateResponse.status === 403) throw new Error("WRITE_DENIED");
