@@ -8,6 +8,7 @@ const TOKEN_KEY = "googleSheetsAccessToken";
 const TOKEN_SCOPE_KEY = "googleSheetsAccessTokenScope";
 const APP_HISTORY_ID = "0937-lego-inventory";
 const BATCH_DRAFT_KEY = "legoInventoryBatchDraft";
+const INVENTORY_DRAFT_KEY = "legoInventoryInventoryDraft";
 const MOBILE_SWIPE_MODES = [null, "sheets", "update"];
 
 function emptyMovementForm(defaults = {}) {
@@ -15,15 +16,19 @@ function emptyMovementForm(defaults = {}) {
   return { origin: defaults.origin || "", storage, storageChoice: storage, qty: "1", obs: "", allocations: Object.create(null) };
 }
 
-function emptyBatchState(userEmail = "") {
+function emptyBatchState(userEmail = "", inventory = false) {
   return {
     version: 1,
     userEmail,
     id: createMovementId(),
-    movementType: "",
-    phase: "type",
+    movementType: inventory ? "entrada" : "",
+    phase: inventory ? "name" : "type",
     items: [],
     form: emptyMovementForm(),
+    sheetName: "",
+    sheetCreated: false,
+    sheetPrepared: false,
+    sheetId: null,
     saving: false,
   };
 }
@@ -84,30 +89,51 @@ function batchUnitCount() {
   return state.batch.items.reduce((total, item) => total + (Number.parseInt(item.qty, 10) || 0), 0);
 }
 
+function isBatchMode(mode = state.mode) {
+  return mode === "lote" || mode === "inventario";
+}
+
+function isInventoryMode() {
+  return state.mode === "inventario";
+}
+
+function batchDraftKey() {
+  return isInventoryMode() ? INVENTORY_DRAFT_KEY : BATCH_DRAFT_KEY;
+}
+
+function batchModeLabel() {
+  return isInventoryMode() ? "INVENTÁRIO" : "LOTE";
+}
+
 function persistBatchDraft() {
   state.batch.userEmail = state.userEmail;
   state.batch.saving = false;
   state.batch.updatedAt = Date.now();
-  localStorage.setItem(BATCH_DRAFT_KEY, JSON.stringify(state.batch));
+  localStorage.setItem(batchDraftKey(), JSON.stringify(state.batch));
 }
 
 function restoreBatchDraft() {
   try {
-    const saved = JSON.parse(localStorage.getItem(BATCH_DRAFT_KEY) || "null");
-    if (!saved || saved.version !== 1 || !Array.isArray(saved.items)) return emptyBatchState(state.userEmail);
-    if (saved.userEmail && state.userEmail && saved.userEmail !== state.userEmail) return emptyBatchState(state.userEmail);
+    const saved = JSON.parse(localStorage.getItem(batchDraftKey()) || "null");
+    if (!saved || saved.version !== 1 || !Array.isArray(saved.items)) return emptyBatchState(state.userEmail, isInventoryMode());
+    if (saved.userEmail && state.userEmail && saved.userEmail !== state.userEmail) return emptyBatchState(state.userEmail, isInventoryMode());
     saved.saving = false;
     saved.form = { ...emptyMovementForm(), ...(saved.form || {}) };
+    saved.sheetName = String(saved.sheetName || "");
+    saved.sheetCreated = Boolean(saved.sheetCreated);
+    saved.sheetPrepared = Boolean(saved.sheetPrepared);
+    saved.sheetId = Number.isInteger(saved.sheetId) ? saved.sheetId : null;
+    if (isInventoryMode()) saved.movementType = "entrada";
     return saved;
   } catch {
-    localStorage.removeItem(BATCH_DRAFT_KEY);
-    return emptyBatchState(state.userEmail);
+    localStorage.removeItem(batchDraftKey());
+    return emptyBatchState(state.userEmail, isInventoryMode());
   }
 }
 
 function clearBatchDraft() {
-  localStorage.removeItem(BATCH_DRAFT_KEY);
-  state.batch = emptyBatchState(state.userEmail);
+  localStorage.removeItem(batchDraftKey());
+  state.batch = emptyBatchState(state.userEmail, isInventoryMode());
 }
 
 function setBatchPhase(phase, addHistory = true) {
@@ -183,7 +209,7 @@ function menuMarkup(id) {
     ${simpleMenuItem("Google Sheets", "show-sheets", state.mode === "sheets")}
     ${simpleMenuItem("Actualizar Brickset", "show-update", state.mode === "update")}
     <div class="menu-separator" role="separator"></div>
-    ${simpleMenuItem("Inventário", "noop")}
+    ${simpleMenuItem("Inventário", "show-inventory", state.mode === "inventario")}
     ${simpleMenuItem("Consultas", "noop")}
     <div class="menu-separator" role="separator"></div>
     ${simpleMenuItem(sessionLabel, sessionAction)}
@@ -201,7 +227,7 @@ function desktopTabsMarkup() {
     <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>Início</button>
     <button type="button" class="desktop-tab${state.mode === "sheets" ? " active" : ""}" data-action="show-sheets"${state.mode === "sheets" ? ' aria-current="page"' : ""}>Google Sheets</button>
     <button type="button" class="desktop-tab${state.mode === "update" ? " active" : ""}" data-action="show-update"${state.mode === "update" ? ' aria-current="page"' : ""}>Actualizar</button>
-    <button type="button" class="desktop-tab" data-action="noop">Inventário</button>
+    <button type="button" class="desktop-tab${state.mode === "inventario" ? " active" : ""}" data-action="show-inventory"${state.mode === "inventario" ? ' aria-current="page"' : ""}>Inventário</button>
     <button type="button" class="desktop-tab" data-action="noop">Consultas</button>
     <button type="button" class="desktop-tab desktop-session" data-action="${sessionAction}">${sessionLabel}</button>
   </nav>`;
@@ -222,9 +248,10 @@ function mainHeaderMarkup(extraClass = "", menuId = "main-menu") {
 }
 
 function lotMobileHeaderMarkup() {
+  const title = batchModeLabel();
   return `<header class="masthead movement-header lot-mobile-header">
     <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
-    <h1 data-lot-mobile-title>LOTE</h1>
+    <h1 data-lot-mobile-title>${title}</h1>
     <div class="header-menu movement-header-menu">
       <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="lot-mobile-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
       ${state.menuOpen ? menuMarkup("lot-mobile-menu") : ""}
@@ -244,7 +271,7 @@ function headerMarkup() {
       </div>
     </header>`;
   }
-  if (state.mode === "lote") return `${mainHeaderMarkup("lot-desktop-header", "lot-desktop-menu")}${lotMobileHeaderMarkup()}`;
+  if (isBatchMode()) return `${mainHeaderMarkup("lot-desktop-header", "lot-desktop-menu")}${lotMobileHeaderMarkup()}`;
   return mainHeaderMarkup();
 }
 
@@ -398,13 +425,23 @@ function batchTypeMarkup() {
   </section></section>`;
 }
 
+function inventoryNameMarkup() {
+  return `<section class="workspace batch-page"><section class="batch-panel inventory-name-panel">
+    <div class="batch-heading"><p>INVENTÁRIO</p><h2>Criar novo inventário</h2><span>Dá um nome ao novo sheet. A estrutura será igual à do sheet Movimentos e só será criada quando concluíres a picagem.</span></div>
+    <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(state.batch.sheetName)}" maxlength="100" required autocomplete="off" placeholder="Ex.: Inventário Agosto 2026"></div>
+    <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="primary" data-action="inventory-start"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A VERIFICAR…" : "COMEÇAR PICAGEM"}</button></div>
+  </section></section>`;
+}
+
 function batchResumePromptMarkup() {
   const units = batchUnitCount();
   const references = state.batch.items.length;
+  const inventory = isInventoryMode();
+  const subject = inventory ? `um inventário “${escapeHtml(state.batch.sheetName)}”` : `uma ${state.batch.movementType === "saida" ? "saída" : "entrada"} em lote`;
   return `<section class="workspace batch-page"><section class="batch-panel batch-resume-prompt">
-    <div class="batch-heading"><p>LOTE EM CURSO</p><h2>Existe uma picagem por concluir</h2><span>Encontrámos uma ${state.batch.movementType === "saida" ? "saída" : "entrada"} em lote com ${units} ${units === 1 ? "unidade" : "unidades"} e ${references} ${references === 1 ? "referência" : "referências"}.</span></div>
-    <p>Queres continuar a leitura corrente ou apagá-la e começar um novo lote?</p>
-    <div class="batch-actions"><button type="button" class="secondary batch-view-draft" data-action="batch-view-draft">VER LOTE</button><button type="button" class="secondary batch-delete-draft" data-action="batch-discard-draft">APAGAR LEITURA</button><button type="button" class="primary" data-action="batch-continue-draft">CONTINUAR</button></div>
+    <div class="batch-heading"><p>${inventory ? "INVENTÁRIO" : "LOTE"} EM CURSO</p><h2>Existe uma picagem por concluir</h2><span>Encontrámos ${subject} com ${units} ${units === 1 ? "unidade" : "unidades"} e ${references} ${references === 1 ? "referência" : "referências"}.</span></div>
+    <p>Queres continuar a leitura corrente ou apagá-la e começar ${inventory ? "um novo inventário" : "um novo lote"}?</p>
+    <div class="batch-actions"><button type="button" class="secondary batch-view-draft" data-action="batch-view-draft">VER ${inventory ? "INVENTÁRIO" : "LOTE"}</button><button type="button" class="secondary batch-delete-draft" data-action="batch-discard-draft">APAGAR LEITURA</button><button type="button" class="primary" data-action="batch-continue-draft">CONTINUAR</button></div>
   </section></section>`;
 }
 
@@ -422,7 +459,7 @@ function batchScanMarkup() {
   const units = batchUnitCount();
   const keypadPoppedOut = isBatchKeypadPoppedOut();
   const keypadSection = keypadPoppedOut ? "" : `
-    <div class="batch-heading"><p>${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
+    <div class="batch-heading"><p>${isInventoryMode() ? `INVENTÁRIO · ${escapeHtml(state.batch.sheetName)}` : `${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE`}</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
     <div class="batch-keypad-shell"><button type="button" class="batch-keypad-popout-button" data-action="batch-keypad-popout" aria-label="Abrir teclado numa janela sempre visível" title="Abrir teclado numa janela sempre visível">${icons.popout}</button><div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div></div>
     <hr class="batch-keypad-divider">`;
   return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel${keypadPoppedOut ? " batch-keypad-detached" : ""}">
@@ -574,8 +611,9 @@ function batchAllocationMarkup(item) {
 }
 
 function batchReviewMarkup() {
+  const label = isInventoryMode() ? "inventário" : "lote";
   return `<section class="workspace batch-page"><section class="batch-panel batch-review-panel">
-    <div class="batch-heading"><p>PICAGEM EM PAUSA</p><h2>Rever lote</h2><span>${state.batch.items.length} ${state.batch.items.length === 1 ? "referência" : "referências"} · ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"}</span></div>
+    <div class="batch-heading"><p>PICAGEM EM PAUSA</p><h2>Rever ${label}</h2><span>${state.batch.items.length} ${state.batch.items.length === 1 ? "referência" : "referências"} · ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"}</span></div>
     <div class="batch-review-list">${[...state.batch.items].reverse().map(item => `<article class="batch-item">
       <div class="batch-item-main"><span class="batch-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span><span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div><button type="button" class="batch-remove-item" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Remover ${escapeHtml(item.code)}">×</button></div>
       ${batchAllocationMarkup(item)}
@@ -595,15 +633,17 @@ function batchConditionsMarkup() {
   const creatingStorage = form.storageChoice === "__other__";
   const storages = state.storageOptions.map(storage => `<option value="${escapeHtml(storage)}"${form.storageChoice === storage ? " selected" : ""}>${escapeHtml(storage)}</option>`).join("");
   const storage = isExit ? "" : `<label><span>Local <b>*</b></span><div class="select-control"><select data-batch-storage-choice required><option value="">Selecionar…</option>${storages}<hr><option value="__other__"${creatingStorage ? " selected" : ""}>Outro…</option></select><span class="select-arrow">▾</span></div><input id="batch-new-storage" data-batch-field="storage" value="${creatingStorage ? escapeHtml(form.storage) : ""}" placeholder="Nova localização"${creatingStorage ? " required" : " hidden"} autocomplete="off"></label>`;
+  const inventory = isInventoryMode();
   return `<section class="workspace batch-page"><section class="batch-panel batch-conditions-panel">
-    <div class="batch-heading"><p>CONCLUIR ${isExit ? "SAÍDA" : "ENTRADA"}</p><h2>Condições comuns</h2><span>Serão aplicadas a ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"} deste lote.</span></div>
+    <div class="batch-heading"><p>CONCLUIR ${inventory ? "INVENTÁRIO" : isExit ? "SAÍDA" : "ENTRADA"}</p><h2>Condições comuns</h2><span>Serão aplicadas a ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"} deste ${inventory ? "inventário" : "lote"}.</span></div>
     <div class="batch-condition-fields">${origin}<label><span>${memberSelected ? "Nome do Membro" : "Obs"} ${obsRequired ? "<b>*</b>" : ""}</span><input data-batch-field="obs" value="${escapeHtml(form.obs)}"${obsRequired ? " required" : ""} autocomplete="off"></label>${storage}</div>
     <p class="batch-id">BatchID: ${escapeHtml(state.batch.id)}</p>
-    <div class="batch-actions"><button type="button" class="secondary" data-action="batch-review">VOLTAR</button><button type="button" class="primary" data-action="batch-submit"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A REGISTAR…" : "CONCLUIR LOTE"}</button></div>
+    <div class="batch-actions"><button type="button" class="secondary" data-action="batch-review">VOLTAR</button><button type="button" class="primary" data-action="batch-submit"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A REGISTAR…" : `CONCLUIR ${inventory ? "INVENTÁRIO" : "LOTE"}`}</button></div>
   </section></section>`;
 }
 
 function batchMarkup() {
+  if (isInventoryMode() && state.batch.phase === "name") return inventoryNameMarkup();
   if (!state.batch.movementType || state.batch.phase === "type") return batchTypeMarkup();
   if (state.batch.phase === "resume") return batchResumePromptMarkup();
   if (state.batch.phase === "review") return batchReviewMarkup();
@@ -612,12 +652,12 @@ function batchMarkup() {
 }
 
 function resultMarkup(item) {
-  return `<article class="set-result"><div class="set-art" style="background:${escapeHtml(item.color)}"><span>#${escapeHtml(item.code)}</span></div><div class="set-copy"><p>${escapeHtml(item.theme)} · ${escapeHtml(item.year)}</p><h3>${escapeHtml(item.name)}</h3><div class="set-meta"><span><small>PEÇAS</small><b>${Number(item.pieces).toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>${item.stock} un.</b></span><span><small>LOCAL</small><b>${escapeHtml(item.location)}</b></span></div></div><button class="confirm-button ${state.mode}" data-action="register">${state.mode === "lote" ? "Adicionar ao lote" : "Abrir ficha"} <span>→</span></button></article>`;
+  return `<article class="set-result"><div class="set-art" style="background:${escapeHtml(item.color)}"><span>#${escapeHtml(item.code)}</span></div><div class="set-copy"><p>${escapeHtml(item.theme)} · ${escapeHtml(item.year)}</p><h3>${escapeHtml(item.name)}</h3><div class="set-meta"><span><small>PEÇAS</small><b>${Number(item.pieces).toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>${item.stock} un.</b></span><span><small>LOCAL</small><b>${escapeHtml(item.location)}</b></span></div></div><button class="confirm-button ${state.mode}" data-action="register">${isBatchMode() ? "Adicionar à picagem" : "Abrir ficha"} <span>→</span></button></article>`;
 }
 
 function render() {
-  if (isBatchKeypadPoppedOut() && (state.mode !== "lote" || state.batch.phase !== "scan")) closeBatchKeypadPopout(false);
-  const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.mode === "lote" ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
+  if (isBatchKeypadPoppedOut() && (!isBatchMode() || state.batch.phase !== "scan")) closeBatchKeypadPopout(false);
+  const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : isBatchMode() ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
   const appContent = document.querySelector(".app-content");
@@ -632,7 +672,8 @@ function updateLotMobileHeaderSummary() {
   const content = document.querySelector(".app-content");
   const summary = document.querySelector(".batch-review-panel .batch-heading span");
   const summaryHasScrolledAway = Boolean(content && summary && summary.getBoundingClientRect().bottom <= content.getBoundingClientRect().top);
-  title.textContent = summaryHasScrolledAway ? `LOTE (${state.batch.items.length} Refs. - ${batchUnitCount()} un.)` : "LOTE";
+  const label = batchModeLabel();
+  title.textContent = summaryHasScrolledAway ? `${label} (${state.batch.items.length} Refs. - ${batchUnitCount()} un.)` : label;
 }
 
 function waitForMobileSwipeAnimation(element) {
@@ -974,28 +1015,62 @@ function setBatchItemQuantity(item, requestedQuantity) {
   return true;
 }
 
-async function ensureBatchColumnAndCheckDuplicate(batchId) {
-  const metadataResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets(properties(sheetId,title,gridProperties(columnCount)))`, {
+function inventorySheetNameError(value) {
+  const name = String(value || "").trim();
+  if (!name) return "Indica o nome do novo sheet.";
+  if (name.length > 100) return "O nome do sheet não pode ter mais de 100 caracteres.";
+  if (/[:\\/?*\[\]]/.test(name)) return "O nome do sheet não pode conter : \\ / ? * [ ou ].";
+  if (name.toLocaleLowerCase("pt-PT") === "movimentos") return "Escolhe um nome diferente de Movimentos.";
+  return "";
+}
+
+function quoteSheetName(name) {
+  return `'${String(name).replace(/'/g, "''")}'`;
+}
+
+async function loadSpreadsheetSheetMetadata() {
+  const metadataResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}?fields=sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)))`, {
     headers: { Authorization: `Bearer ${state.accessToken}` },
     cache: "no-store",
   });
   if (metadataResponse.status === 401) throw new Error("AUTH_EXPIRED");
   if (metadataResponse.status === 403) throw new Error("READ_DENIED");
   if (!metadataResponse.ok) throw new Error(`SHEETS_METADATA_ERROR_${metadataResponse.status}`);
-  const movementSheet = (await metadataResponse.json()).sheets?.find(sheet => sheet.properties?.title === "Movimentos");
-  if (!movementSheet) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
-  const currentColumnCount = Number(movementSheet.properties.gridProperties?.columnCount) || 0;
+  return (await metadataResponse.json()).sheets || [];
+}
+
+function findSheetByName(sheets, sheetName) {
+  const expected = String(sheetName).toLocaleLowerCase("pt-PT");
+  return sheets.find(sheet => String(sheet.properties?.title || "").toLocaleLowerCase("pt-PT") === expected);
+}
+
+async function ensureInventorySheetNameAvailable(sheetName) {
+  const message = inventorySheetNameError(sheetName);
+  if (message) {
+    const error = new Error("INVALID_INVENTORY_SHEET_NAME");
+    error.userMessage = message;
+    throw error;
+  }
+  const sheets = await loadSpreadsheetSheetMetadata();
+  if (findSheetByName(sheets, sheetName.trim())) throw new Error("INVENTORY_SHEET_EXISTS");
+}
+
+async function ensureBatchColumnAndCheckDuplicate(batchId, sheetName = "Movimentos") {
+  const sheets = await loadSpreadsheetSheetMetadata();
+  const targetSheet = findSheetByName(sheets, sheetName);
+  if (!targetSheet) throw new Error(sheetName === "Movimentos" ? "MOVEMENTS_SHEET_NOT_FOUND" : "TARGET_SHEET_NOT_FOUND");
+  const currentColumnCount = Number(targetSheet.properties.gridProperties?.columnCount) || 0;
   if (currentColumnCount < 16) {
     const dimensionResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
       method: "POST",
       headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ requests: [{ appendDimension: { sheetId: movementSheet.properties.sheetId, dimension: "COLUMNS", length: 16 - currentColumnCount } }] }),
+      body: JSON.stringify({ requests: [{ appendDimension: { sheetId: targetSheet.properties.sheetId, dimension: "COLUMNS", length: 16 - currentColumnCount } }] }),
     });
     if (dimensionResponse.status === 401) throw new Error("AUTH_EXPIRED");
     if (dimensionResponse.status === 403) throw new Error("WRITE_DENIED");
     if (!dimensionResponse.ok) throw new Error(`SHEETS_DIMENSION_ERROR_${dimensionResponse.status}`);
   }
-  const range = encodeURIComponent("Movimentos!P1:P");
+  const range = encodeURIComponent(`${quoteSheetName(sheetName)}!P1:P`);
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
     headers: { Authorization: `Bearer ${state.accessToken}` },
     cache: "no-store",
@@ -1008,7 +1083,7 @@ async function ensureBatchColumnAndCheckDuplicate(batchId) {
   if (header && header !== "BatchID") throw new Error("BATCH_HEADER_CONFLICT");
   if (values.slice(1).some(row => String(row[0] || "").trim() === batchId)) return true;
   if (!header) {
-    const headerRange = encodeURIComponent("Movimentos!P1");
+    const headerRange = encodeURIComponent(`${quoteSheetName(sheetName)}!P1`);
     const headerResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${headerRange}?valueInputOption=RAW`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
@@ -1021,9 +1096,65 @@ async function ensureBatchColumnAndCheckDuplicate(batchId) {
   return false;
 }
 
+async function prepareInventorySheet() {
+  const sheetName = state.batch.sheetName.trim();
+  const nameMessage = inventorySheetNameError(sheetName);
+  if (nameMessage) {
+    const error = new Error("INVALID_INVENTORY_SHEET_NAME");
+    error.userMessage = nameMessage;
+    throw error;
+  }
+
+  await ensureBatchColumnAndCheckDuplicate(state.batch.id, "Movimentos");
+  let sheets = await loadSpreadsheetSheetMetadata();
+  const movementSheet = findSheetByName(sheets, "Movimentos");
+  if (!movementSheet) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
+  let inventorySheet = findSheetByName(sheets, sheetName);
+
+  if (inventorySheet && !state.batch.sheetCreated) throw new Error("INVENTORY_SHEET_EXISTS");
+  if (!inventorySheet) {
+    const duplicateResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: [{ duplicateSheet: { sourceSheetId: movementSheet.properties.sheetId, newSheetName: sheetName } }] }),
+    });
+    if (duplicateResponse.status === 401) throw new Error("AUTH_EXPIRED");
+    if (duplicateResponse.status === 403) throw new Error("WRITE_DENIED");
+    if (duplicateResponse.status === 400) throw new Error("INVENTORY_SHEET_EXISTS");
+    if (!duplicateResponse.ok) throw new Error(`SHEETS_DUPLICATE_ERROR_${duplicateResponse.status}`);
+    const duplicateResult = await duplicateResponse.json();
+    const properties = duplicateResult.replies?.[0]?.duplicateSheet?.properties;
+    if (!properties?.sheetId) throw new Error("SHEETS_DUPLICATE_INVALID_RESPONSE");
+    inventorySheet = { properties };
+    state.batch.sheetCreated = true;
+    state.batch.sheetPrepared = false;
+    state.batch.sheetId = properties.sheetId;
+    persistBatchDraft();
+  }
+
+  if (!state.batch.sheetPrepared) {
+    const rowCount = Math.max(2, Number(inventorySheet.properties.gridProperties?.rowCount) || 1000);
+    const columnCount = Math.max(16, Number(inventorySheet.properties.gridProperties?.columnCount) || 16);
+    const clearResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ requests: [{ updateCells: { range: { sheetId: inventorySheet.properties.sheetId, startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: columnCount }, fields: "userEnteredValue" } }] }),
+    });
+    if (clearResponse.status === 401) throw new Error("AUTH_EXPIRED");
+    if (clearResponse.status === 403) throw new Error("WRITE_DENIED");
+    if (!clearResponse.ok) throw new Error(`SHEETS_CLEAR_ERROR_${clearResponse.status}`);
+    state.batch.sheetCreated = true;
+    state.batch.sheetPrepared = true;
+    state.batch.sheetId = inventorySheet.properties.sheetId;
+    persistBatchDraft();
+  }
+  return sheetName;
+}
+
 async function appendBatchMovements() {
   if (!state.accessToken || !state.userEmail || !state.batch.items.length) throw new Error("NOT_AUTHENTICATED");
-  const alreadyRecorded = await ensureBatchColumnAndCheckDuplicate(state.batch.id);
+  const targetSheetName = isInventoryMode() ? await prepareInventorySheet() : "Movimentos";
+  const alreadyRecorded = await ensureBatchColumnAndCheckDuplicate(state.batch.id, targetSheetName);
   if (alreadyRecorded) return { duplicate: true };
   const form = state.batch.form;
   const isExit = state.batch.movementType === "saida";
@@ -1056,7 +1187,7 @@ async function appendBatchMovements() {
       item.rrp || "", form.obs.trim(), state.batch.id,
     ]));
   }
-  const range = encodeURIComponent("Movimentos!A:P");
+  const range = encodeURIComponent(`${quoteSheetName(targetSheetName)}!A:P`);
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
     method: "POST",
     headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
@@ -1064,7 +1195,7 @@ async function appendBatchMovements() {
   });
   if (response.status === 401) throw new Error("AUTH_EXPIRED");
   if (response.status === 403) throw new Error("WRITE_DENIED");
-  if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
+  if (response.status === 400 || response.status === 404) throw new Error(isInventoryMode() ? "TARGET_SHEET_NOT_FOUND" : "MOVEMENTS_SHEET_NOT_FOUND");
   if (!response.ok) throw new Error(`SHEETS_WRITE_ERROR_${response.status}`);
   return response.json();
 }
@@ -1408,14 +1539,14 @@ async function openBarcodeScanner(addHistory = true) {
           if (ean) {
             const found = findSetByEan(ean);
             if (found) {
-              if (state.mode === "lote") {
+              if (isBatchMode()) {
                 const acceptedAt = performance.now();
                 if (ean !== lastBatchEan || acceptedAt - lastBatchEanAt >= 1000) {
                   lastBatchEan = ean;
                   lastBatchEanAt = acceptedAt;
                   const added = await addCodeToBatch(ean, true);
                   updateScannerStatus(added
-                    ? `${found.code} adicionado · ${batchUnitCount()} un. no lote. Aponte para o próximo código.`
+                    ? `${found.code} adicionado · ${batchUnitCount()} un. na picagem. Aponte para o próximo código.`
                     : `Não foi possível adicionar ${found.code}. Aponte para outro código.`);
                   if (navigator.vibrate && added) navigator.vibrate(45);
                 }
@@ -1517,7 +1648,7 @@ document.addEventListener("click", async event => {
     state.movementForm = movementFormForMode(state.mode);
     state.locationStock = [];
     state.photoMetaVisible = true;
-    if (state.mode === "lote") {
+    if (isBatchMode()) {
       state.batch = restoreBatchDraft();
       if (state.batch.items.length) {
         state.batch.resumePhase = state.batch.phase;
@@ -1537,6 +1668,29 @@ document.addEventListener("click", async event => {
   }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
+  if (action === "show-inventory") {
+    if (!state.loggedIn || !state.accessToken) {
+      state.menuOpen = false;
+      loginWithGoogle();
+      return;
+    }
+    if (state.mode === "inventario") {
+      state.menuOpen = false;
+      render();
+      return;
+    }
+    Object.assign(state, { mode: "inventario", query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
+    state.batch = restoreBatchDraft();
+    if (state.batch.items.length) {
+      state.batch.resumePhase = state.batch.phase;
+      state.batch.phase = "resume";
+    } else if (state.batch.sheetName && state.batch.phase !== "name") {
+      state.batch.phase = "scan";
+    }
+    writeAppHistory("mode");
+    render();
+    return;
+  }
   if (action === "batch-keypad-popout") { await openBatchKeypadPopout(); return; }
   if (action === "scanner") { openBarcodeScanner(); return; }
   if (action === "close-scanner") { window.history.back(); return; }
@@ -1576,6 +1730,42 @@ document.addEventListener("click", async event => {
     document.querySelector("#lego-code")?.focus();
     return;
   }
+  if (action === "inventory-start") {
+    if (state.batch.saving) return;
+    const input = document.querySelector("#inventory-sheet-name");
+    const message = inventorySheetNameError(state.batch.sheetName);
+    if (message) {
+      input?.setCustomValidity(message);
+      input?.reportValidity();
+      input?.setCustomValidity("");
+      return;
+    }
+    state.batch.saving = true;
+    state.movementNotice = null;
+    render();
+    try {
+      await ensureInventorySheetNameAvailable(state.batch.sheetName);
+      state.batch.saving = false;
+      state.batch.sheetName = state.batch.sheetName.trim();
+      state.batch.movementType = "entrada";
+      if (!state.batch.items.length) state.batch.form = movementFormForMode("entrada");
+      state.batch.phase = "scan";
+      persistBatchDraft();
+      writeAppHistory("batch-scan");
+      render();
+      document.querySelector("#lego-code")?.focus();
+    } catch (error) {
+      state.batch.saving = false;
+      const errorMessage = error.userMessage || ({
+        INVENTORY_SHEET_EXISTS: "Já existe um sheet com esse nome. Escolhe outro nome.",
+        AUTH_EXPIRED: "A sessão Google expirou. Inicia sessão novamente.",
+        READ_DENIED: "Sem permissão para verificar os sheets existentes.",
+      })[error.message] || "Não foi possível verificar o nome do sheet. Tenta novamente.";
+      showMovementNotice(errorMessage, "error");
+      render();
+    }
+    return;
+  }
   if (action === "batch-add-code") { await addCodeToBatch(state.query); document.querySelector("#lego-code")?.focus(); return; }
   if (action === "batch-review") {
     if (!state.batch.items.length) return;
@@ -1593,7 +1783,7 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "batch-cancel") {
-    if (state.batch.items.length && !window.confirm("Cancelar esta picagem e apagar o rascunho do lote?")) return;
+    if (state.batch.items.length && !window.confirm(`Cancelar esta picagem e apagar o rascunho do ${isInventoryMode() ? "inventário" : "lote"}?`)) return;
     clearBatchDraft();
     Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementNotice: null });
     writeAppHistory("home");
@@ -1613,7 +1803,7 @@ document.addEventListener("click", async event => {
   if (action === "batch-item-remove") {
     const code = event.target.closest("[data-batch-code]")?.dataset.batchCode;
     const item = batchItemByCode(code);
-    if (!item || !window.confirm(`Apagar ${item.code} · ${item.name} do lote?`)) return;
+    if (!item || !window.confirm(`Apagar ${item.code} · ${item.name} do ${isInventoryMode() ? "inventário" : "lote"}?`)) return;
     state.batch.items = state.batch.items.filter(item => String(item.code) !== String(code));
     if (!state.batch.items.length) state.batch.phase = "scan";
     persistBatchDraft();
@@ -1673,6 +1863,8 @@ document.addEventListener("click", async event => {
     state.movementNotice = null;
     render();
     try {
+      const inventory = isInventoryMode();
+      const inventorySheetName = state.batch.sheetName.trim();
       const result = await appendBatchMovements();
       const movementName = state.batch.movementType === "entrada" ? "Entrada" : "Saída";
       const units = batchUnitCount();
@@ -1681,24 +1873,32 @@ document.addEventListener("click", async event => {
         state.storageOptions = sortStorageNames([...state.storageOptions, state.batch.form.storage]);
       }
       clearBatchDraft();
-      Object.assign(state, { mode: null, query: "", selected: null, movementNotice: null, status: `${movementName} em lote registada.` });
-      showMovementNotice(result.duplicate ? "Este lote já estava registado." : `Lote concluído com sucesso · ${units} un.`, "success");
+      Object.assign(state, { mode: null, query: "", selected: null, movementNotice: null, status: inventory ? `Inventário registado em ${inventorySheetName}.` : `${movementName} em lote registada.` });
+      showMovementNotice(result.duplicate ? `Este ${inventory ? "inventário" : "lote"} já estava registado.` : inventory ? `Inventário “${inventorySheetName}” concluído · ${units} un.` : `Lote concluído com sucesso · ${units} un.`, "success");
       writeAppHistory("home", true);
     } catch (error) {
       state.batch.saving = false;
       const messages = {
-        NOT_AUTHENTICATED: "Inicia novamente a sessão Google antes de concluir o lote.",
+        NOT_AUTHENTICATED: `Inicia novamente a sessão Google antes de concluir o ${isInventoryMode() ? "inventário" : "lote"}.`,
         AUTH_EXPIRED: "A sessão Google expirou. Inicia sessão novamente.",
         READ_DENIED: "Sem permissão para validar os movimentos.",
-        WRITE_DENIED: "Sem permissão para escrever no sheet Movimentos.",
+        WRITE_DENIED: `Sem permissão para escrever no sheet ${isInventoryMode() ? "do inventário" : "Movimentos"}.`,
         MOVEMENTS_SHEET_NOT_FOUND: "Não foi possível encontrar o sheet Movimentos.",
+        TARGET_SHEET_NOT_FOUND: "Não foi possível encontrar o novo sheet do inventário.",
+        INVENTORY_SHEET_EXISTS: "Já existe um sheet com esse nome. Volta a iniciar o inventário com outro nome.",
         INVALID_ALLOCATION: "A distribuição por localizações não corresponde à quantidade do lote.",
         LOCATION_STOCK_CHANGED: `O stock por localização de ${error.setCode || "um conjunto"} foi alterado. Revê o lote.`,
-        BATCH_HEADER_CONFLICT: "A coluna P de Movimentos já tem outro cabeçalho. Deve chamar-se BatchID.",
+        BATCH_HEADER_CONFLICT: "A coluna P do sheet de destino já tem outro cabeçalho. Deve chamar-se BatchID.",
+        INVALID_INVENTORY_SHEET_NAME: error.userMessage || "O nome do sheet não é válido.",
       };
       const message = error.message === "INSUFFICIENT_STOCK"
         ? `Stock insuficiente para ${error.setCode}. Disponível: ${Math.max(0, error.availableStock)}.`
-        : messages[error.message] || (error.message.startsWith("SHEETS_") ? `O Google Sheets recusou a operação (${error.message}).` : "Não foi possível concluir o lote. Tenta novamente.");
+        : messages[error.message] || (error.message.startsWith("SHEETS_") ? `O Google Sheets recusou a operação (${error.message}).` : `Não foi possível concluir o ${isInventoryMode() ? "inventário" : "lote"}. Tenta novamente.`);
+      if (isInventoryMode() && error.message === "INVENTORY_SHEET_EXISTS") {
+        state.batch.phase = "name";
+        persistBatchDraft();
+        writeAppHistory("batch-name", true);
+      }
       showMovementNotice(message, "error");
     }
     render();
@@ -1886,11 +2086,19 @@ document.addEventListener("click", async event => {
   if (action === "login") { loginWithGoogle(); return; }
   if (action === "logout") { logoutGoogle(); return; }
   if (action === "open-sheet") window.open(`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit`, "_blank", "noopener");
-  if (action === "register") state.status = `${state.mode === "lote" ? "Item adicionado ao lote" : "Consulta"} preparada para ${state.selected.code}.`;
+  if (action === "register") state.status = `${isBatchMode() ? "Item adicionado à picagem" : "Consulta"} preparada para ${state.selected.code}.`;
   render();
 });
 
 document.addEventListener("input", event => {
+  if (event.target.dataset?.inventorySheetName !== undefined) {
+    state.batch.sheetName = event.target.value;
+    state.batch.sheetCreated = false;
+    state.batch.sheetPrepared = false;
+    state.batch.sheetId = null;
+    persistBatchDraft();
+    return;
+  }
   if (event.target.dataset?.batchStorageChoice !== undefined) {
     const choice = event.target.value;
     const creatingStorage = choice === "__other__";
@@ -2007,10 +2215,10 @@ document.addEventListener("keydown", async event => {
   }
   if (event.target.id === "lego-code" && event.key === "Enter") {
     event.preventDefault();
-    if (state.mode === "lote") await addCodeToBatch(state.query);
+    if (isBatchMode()) await addCodeToBatch(state.query);
     else lookup();
   }
-  const keypadActive = ((state.mode === "entrada" || state.mode === "saida") && !state.selected || state.mode === "lote" && state.batch.phase === "scan") && !state.scannerOpen;
+  const keypadActive = ((state.mode === "entrada" || state.mode === "saida") && !state.selected || isBatchMode() && state.batch.phase === "scan") && !state.scannerOpen;
   if (!keypadActive || event.ctrlKey || event.metaKey || event.altKey) return;
   if (/^\d$/.test(event.key)) {
     event.preventDefault();
@@ -2035,7 +2243,7 @@ document.addEventListener("keydown", async event => {
   }
   if (event.key === "Enter") {
     event.preventDefault();
-    if (state.mode === "lote") await addCodeToBatch(state.query);
+    if (isBatchMode()) await addCodeToBatch(state.query);
     else lookup();
   }
 });
@@ -2067,7 +2275,7 @@ window.addEventListener("popstate", async event => {
   state.movementForm = movementFormForMode(state.mode);
   state.photoMetaVisible = true;
 
-  if (state.mode === "lote") {
+  if (isBatchMode()) {
     state.batch = restoreBatchDraft();
     if (historyState.step.startsWith("batch-")) {
       state.batch.phase = historyState.step.replace("batch-", "");
@@ -2077,7 +2285,7 @@ window.addEventListener("popstate", async event => {
         state.batch.resumePhase = state.batch.phase;
         state.batch.phase = "resume";
       } else {
-        state.batch.phase = "type";
+        state.batch.phase = isInventoryMode() ? "name" : "type";
       }
     }
     render();
