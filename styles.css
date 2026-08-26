@@ -175,6 +175,7 @@ html,body{height:100%;overflow:hidden}
 .legal-links{margin:16px 0 0;text-align:center}.legal-links a{color:#66727a;font-size:12px;text-decoration:none}.legal-links a:hover,.legal-links a:focus-visible{color:#335f87;text-decoration:underline;outline:0}
 .desktop-tabs{height:100%;margin-left:auto;display:flex;align-items:flex-end}
 .desktop-tab{height:42px;padding:0 12px;border:0;background:transparent;color:#d6d6d6;font-size:16px;font-weight:400;letter-spacing:0;white-space:nowrap;cursor:pointer}
+.desktop-tab:last-child{min-width:78px}
 .desktop-tab:hover,.desktop-tab:focus-visible{background:#747677;color:#fff;outline:0}
 .desktop-tab.active,.desktop-tab.active:hover,.desktop-tab.active:focus-visible{background:#fff;color:#444647}
 .desktop-session{margin-left:0;color:#d6d6d6}
