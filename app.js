@@ -632,7 +632,7 @@ function updateLotMobileHeaderSummary() {
   const content = document.querySelector(".app-content");
   const summary = document.querySelector(".batch-review-panel .batch-heading span");
   const summaryHasScrolledAway = Boolean(content && summary && summary.getBoundingClientRect().bottom <= content.getBoundingClientRect().top);
-  title.textContent = summaryHasScrolledAway ? `LOTE: ${state.batch.items.length} Refs - ${batchUnitCount()} un.` : "LOTE";
+  title.textContent = summaryHasScrolledAway ? `LOTE (${state.batch.items.length} Refs. - ${batchUnitCount()} un.)` : "LOTE";
 }
 
 function waitForMobileSwipeAnimation(element) {
