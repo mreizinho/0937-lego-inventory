@@ -134,7 +134,7 @@ function desktopTabsMarkup() {
   const sessionAction = state.loggedIn ? "logout" : "login";
   const sessionLabel = state.loggedIn ? "Logout" : "Login";
   return `<nav class="desktop-tabs" aria-label="Navegação principal">
-    <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>Acções</button>
+    <button type="button" class="desktop-tab${state.mode ? "" : " active"}" data-action="home"${state.mode ? "" : ' aria-current="page"'}>Início</button>
     <button type="button" class="desktop-tab${state.mode === "sheets" ? " active" : ""}" data-action="show-sheets"${state.mode === "sheets" ? ' aria-current="page"' : ""}>Google Sheets</button>
     <button type="button" class="desktop-tab${state.mode === "update" ? " active" : ""}" data-action="show-update"${state.mode === "update" ? ' aria-current="page"' : ""}>Actualizar</button>
     <button type="button" class="desktop-tab" data-action="noop">Inventário</button>
@@ -179,7 +179,7 @@ function optionsMarkup() {
   return `<section class="workspace sheets-page actions-page" id="inventario">
     <article class="sheets-explainer actions-explainer">
     <div class="sheets-copy actions-copy">
-      <p class="sheets-eyebrow actions-eyebrow">ACÇÕES</p>
+      <p class="sheets-eyebrow actions-eyebrow">INÍCIO</p>
       <p class="actions-tagline">O que queres fazer hoje?</p>
       ${login}
       <div class="options-grid">
