@@ -1452,10 +1452,13 @@ document.addEventListener("click", async event => {
   }
   if (action === "batch-item-remove") {
     const code = event.target.closest("[data-batch-code]")?.dataset.batchCode;
+    const item = batchItemByCode(code);
+    if (!item || !window.confirm(`Apagar ${item.code} · ${item.name} do lote?`)) return;
     state.batch.items = state.batch.items.filter(item => String(item.code) !== String(code));
-    persistBatchDraft();
     if (!state.batch.items.length) state.batch.phase = "scan";
-    render();
+    persistBatchDraft();
+    if (state.batch.phase === "review") renderPreservingContentScroll();
+    else render();
     return;
   }
   if (action.startsWith("batch-allocation-")) {
