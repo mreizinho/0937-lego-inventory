@@ -428,7 +428,7 @@ function batchTypeMarkup() {
 function inventoryNameMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel inventory-name-panel">
     <div class="batch-heading"><p>INVENTÁRIO</p><h2>Criar novo inventário</h2><span>Dá um nome ao novo sheet. A estrutura será igual à do sheet Movimentos e só será criada quando concluíres a picagem.</span></div>
-    <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(state.batch.sheetName)}" maxlength="100" required autocomplete="off" placeholder="Ex.: Inventário Agosto 2026"></div>
+    <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><div class="inventory-sheet-name-control"><span>INV_</span><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(inventorySheetBaseName(state.batch.sheetName))}" maxlength="96" required autocomplete="off" placeholder="Ex.: Teste"></div><small>Será criado como <b>${escapeHtml(inventorySheetTitle(state.batch.sheetName || "…"))}</b> apenas quando concluíres.</small></div>
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="primary" data-action="inventory-start"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A VERIFICAR…" : "COMEÇAR PICAGEM"}</button></div>
   </section></section>`;
 }
@@ -437,7 +437,7 @@ function batchResumePromptMarkup() {
   const units = batchUnitCount();
   const references = state.batch.items.length;
   const inventory = isInventoryMode();
-  const subject = inventory ? `um inventário “${escapeHtml(state.batch.sheetName)}”` : `uma ${state.batch.movementType === "saida" ? "saída" : "entrada"} em lote`;
+  const subject = inventory ? `um inventário “${escapeHtml(inventorySheetTitle(state.batch.sheetName))}”` : `uma ${state.batch.movementType === "saida" ? "saída" : "entrada"} em lote`;
   return `<section class="workspace batch-page"><section class="batch-panel batch-resume-prompt">
     <div class="batch-heading"><p>${inventory ? "INVENTÁRIO" : "LOTE"} EM CURSO</p><h2>Existe uma picagem por concluir</h2><span>Encontrámos ${subject} com ${units} ${units === 1 ? "unidade" : "unidades"} e ${references} ${references === 1 ? "referência" : "referências"}.</span></div>
     <p>Queres continuar a leitura corrente ou apagá-la e começar ${inventory ? "um novo inventário" : "um novo lote"}?</p>
@@ -459,7 +459,7 @@ function batchScanMarkup() {
   const units = batchUnitCount();
   const keypadPoppedOut = isBatchKeypadPoppedOut();
   const keypadSection = keypadPoppedOut ? "" : `
-    <div class="batch-heading"><p>${isInventoryMode() ? `INVENTÁRIO · ${escapeHtml(state.batch.sheetName)}` : `${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE`}</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
+    <div class="batch-heading"><p>${isInventoryMode() ? `INVENTÁRIO · ${escapeHtml(inventorySheetTitle(state.batch.sheetName))}` : `${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE`}</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
     <div class="batch-keypad-shell"><button type="button" class="batch-keypad-popout-button" data-action="batch-keypad-popout" aria-label="Abrir teclado numa janela sempre visível" title="Abrir teclado numa janela sempre visível">${icons.popout}</button><div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div></div>
     <hr class="batch-keypad-divider">`;
   return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel${keypadPoppedOut ? " batch-keypad-detached" : ""}">
@@ -1016,12 +1016,19 @@ function setBatchItemQuantity(item, requestedQuantity) {
 }
 
 function inventorySheetNameError(value) {
-  const name = String(value || "").trim();
+  const name = inventorySheetBaseName(value);
   if (!name) return "Indica o nome do novo sheet.";
-  if (name.length > 100) return "O nome do sheet não pode ter mais de 100 caracteres.";
+  if (inventorySheetTitle(name).length > 100) return "O nome completo do sheet não pode ter mais de 100 caracteres.";
   if (/[:\\/?*\[\]]/.test(name)) return "O nome do sheet não pode conter : \\ / ? * [ ou ].";
-  if (name.toLocaleLowerCase("pt-PT") === "movimentos") return "Escolhe um nome diferente de Movimentos.";
   return "";
+}
+
+function inventorySheetBaseName(value) {
+  return String(value || "").trim().replace(/^INV_/i, "").trim();
+}
+
+function inventorySheetTitle(value) {
+  return `INV_${inventorySheetBaseName(value)}`;
 }
 
 function quoteSheetName(name) {
@@ -1052,7 +1059,7 @@ async function ensureInventorySheetNameAvailable(sheetName) {
     throw error;
   }
   const sheets = await loadSpreadsheetSheetMetadata();
-  if (findSheetByName(sheets, sheetName.trim())) throw new Error("INVENTORY_SHEET_EXISTS");
+  if (findSheetByName(sheets, inventorySheetTitle(sheetName))) throw new Error("INVENTORY_SHEET_EXISTS");
 }
 
 async function ensureBatchColumnAndCheckDuplicate(batchId, sheetName = "Movimentos") {
@@ -1097,7 +1104,7 @@ async function ensureBatchColumnAndCheckDuplicate(batchId, sheetName = "Moviment
 }
 
 async function prepareInventorySheet() {
-  const sheetName = state.batch.sheetName.trim();
+  const sheetName = inventorySheetTitle(state.batch.sheetName);
   const nameMessage = inventorySheetNameError(sheetName);
   if (nameMessage) {
     const error = new Error("INVALID_INVENTORY_SHEET_NAME");
@@ -1138,7 +1145,7 @@ async function prepareInventorySheet() {
     const clearResponse = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}:batchUpdate`, {
       method: "POST",
       headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ requests: [{ updateCells: { range: { sheetId: inventorySheet.properties.sheetId, startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: columnCount }, fields: "userEnteredValue" } }] }),
+      body: JSON.stringify({ requests: [{ updateCells: { range: { sheetId: inventorySheet.properties.sheetId, startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: columnCount }, fields: "userEnteredValue,userEnteredFormat" } }] }),
     });
     if (clearResponse.status === 401) throw new Error("AUTH_EXPIRED");
     if (clearResponse.status === 403) throw new Error("WRITE_DENIED");
@@ -1188,7 +1195,8 @@ async function appendBatchMovements() {
     ]));
   }
   const range = encodeURIComponent(`${quoteSheetName(targetSheetName)}!A:P`);
-  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`, {
+  const insertDataOption = isInventoryMode() ? "OVERWRITE" : "INSERT_ROWS";
+  const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=${insertDataOption}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${state.accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({ majorDimension: "ROWS", values: rows }),
@@ -1746,7 +1754,7 @@ document.addEventListener("click", async event => {
     try {
       await ensureInventorySheetNameAvailable(state.batch.sheetName);
       state.batch.saving = false;
-      state.batch.sheetName = state.batch.sheetName.trim();
+      state.batch.sheetName = inventorySheetBaseName(state.batch.sheetName);
       state.batch.movementType = "entrada";
       if (!state.batch.items.length) state.batch.form = movementFormForMode("entrada");
       state.batch.phase = "scan";
@@ -1864,7 +1872,7 @@ document.addEventListener("click", async event => {
     render();
     try {
       const inventory = isInventoryMode();
-      const inventorySheetName = state.batch.sheetName.trim();
+      const inventorySheetName = inventorySheetTitle(state.batch.sheetName);
       const result = await appendBatchMovements();
       const movementName = state.batch.movementType === "entrada" ? "Entrada" : "Saída";
       const units = batchUnitCount();
@@ -2092,7 +2100,8 @@ document.addEventListener("click", async event => {
 
 document.addEventListener("input", event => {
   if (event.target.dataset?.inventorySheetName !== undefined) {
-    state.batch.sheetName = event.target.value;
+    state.batch.sheetName = inventorySheetBaseName(event.target.value);
+    event.target.value = state.batch.sheetName;
     state.batch.sheetCreated = false;
     state.batch.sheetPrepared = false;
     state.batch.sheetId = null;
