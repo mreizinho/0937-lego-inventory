@@ -238,6 +238,6 @@ html,body{height:100%;overflow:hidden}
 .batch-actions button{font-size:18px;letter-spacing:1px}@media(max-width:850px){.batch-actions button{font-size:15px}}
 .batch-resume-prompt .batch-view-draft{border:0;background:#8b9093;color:#fff}
 .batch-actions [data-action="batch-cancel"]{background:#a65a55;color:#fff}
-.batch-remove-item{background:#1e1f20;color:#fff}
+.batch-remove-item{position:relative;background:#1e1f20;color:transparent}
 .batch-mini-title{margin:0 0 12px;text-align:center;color:#777;font-size:16px;font-weight:400;letter-spacing:normal;text-transform:none}@media(max-width:850px){.batch-mini-title{font-size:14px}}
-@media(min-width:851px){.batch-remove-item{position:relative;color:transparent}.batch-remove-item::before,.batch-remove-item::after{content:"";position:absolute;left:50%;top:50%;width:15px;height:2px;border-radius:2px;background:#fff;transform:translate(-50%,-50%) rotate(45deg)}.batch-remove-item::after{transform:translate(-50%,-50%) rotate(-45deg)}}
+.batch-remove-item::before,.batch-remove-item::after{content:"";position:absolute;left:50%;top:50%;width:15px;height:2px;border-radius:2px;background:#fff;transform:translate(-50%,-50%) rotate(45deg)}.batch-remove-item::after{transform:translate(-50%,-50%) rotate(-45deg)}@media(max-width:850px){.batch-remove-item::before,.batch-remove-item::after{width:13px}}
