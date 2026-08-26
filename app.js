@@ -106,7 +106,6 @@ const icons = {
   close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m15 4-8 8 8 8"/></svg>',
   lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>',
-  google: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285f4" d="M21.6 12.2c0-.7-.1-1.4-.2-2.2H12v4h5.4a4.6 4.6 0 0 1-2 3v2.6h3.3c1.9-1.8 2.9-4.4 2.9-7.4Z"/><path fill="#34a853" d="M12 22c2.7 0 5-.9 6.7-2.4L15.4 17c-.9.6-2.1 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3v2.7A10 10 0 0 0 12 22Z"/><path fill="#fbbc05" d="M6.4 13.9A6 6 0 0 1 6.1 12c0-.7.1-1.3.3-1.9V7.4H3A10 10 0 0 0 3 16.6l3.4-2.7Z"/><path fill="#ea4335" d="M12 6c1.5 0 2.8.5 3.9 1.5l2.9-2.9A9.7 9.7 0 0 0 12 2a10 10 0 0 0-9 5.4l3.4 2.7A6 6 0 0 1 12 6Z"/></svg>',
   scanner: '<svg class="scanner-glyph" viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 3H5a2 2 0 0 0-2 2v4M19 3h4a2 2 0 0 1 2 2v4M9 25H5a2 2 0 0 1-2-2v-4M19 25h4a2 2 0 0 0 2-2v-4M7 9v10M10 9v10M14 9v10M17 9v10M21 9v10"/></svg>',
 };
 
@@ -115,22 +114,22 @@ function escapeHtml(value) {
 }
 
 function menuMarkup(id) {
-  const login = state.loggedIn
-    ? `<button class="google-login signed-in" data-action="logout"><span>↪</span><span><strong>Terminar sessão</strong><small>Sessão Google ativa</small></span></button>`
-    : `<button class="google-login" data-action="login"><span>${icons.google}</span><span><strong>Entrar com Google</strong><small>Aceder ao inventário</small></span></button>`;
-  return `<div class="menu-popover" id="${id}">${login}
-    ${menuItem("⌂", "blue", "Acções", "Voltar ao ecrã inicial", "home")}
-    <p class="menu-group-title">BASE DE DADOS</p>
-    ${menuItem("▦", "green", "Abrir Google Sheets", "Ver tabela completa", "show-sheets")}
-    ${menuItem("↻", "blue", "Actualizar Catálogos", "Sync via API Brickset", "show-update")}
-    <p class="menu-group-title extras">EXTRAS</p>
-    ${menuItem("▣", "orange", "Modo Inventário", "Iniciar novo inventário")}
-    ${menuItem("▽", "blue", "Consultas Avançadas", "Filtros por tema, período...")}
+  const sessionAction = state.loggedIn ? "logout" : "login";
+  const sessionLabel = state.loggedIn ? "Logout" : "Login";
+  return `<div class="menu-popover" id="${id}">
+    ${simpleMenuItem("Início", "home", !state.mode)}
+    ${simpleMenuItem("Google Sheets", "show-sheets", state.mode === "sheets")}
+    ${simpleMenuItem("Actualizar Brickset", "show-update", state.mode === "update")}
+    <div class="menu-separator" role="separator"></div>
+    ${simpleMenuItem("Inventário", "noop")}
+    ${simpleMenuItem("Consultas", "noop")}
+    <div class="menu-separator" role="separator"></div>
+    ${simpleMenuItem(sessionLabel, sessionAction)}
   </div>`;
 }
 
-function menuItem(symbol, color, title, description, action = "noop") {
-  return `<button class="menu-action" data-action="${action}"><span class="menu-action-icon ${color}">${symbol}</span><span><strong>${title}</strong><small>${description}</small></span><b class="menu-chevron">›</b></button>`;
+function simpleMenuItem(title, action, active = false) {
+  return `<button type="button" class="menu-simple-item${active ? " active" : ""}" data-action="${action}"${active ? ' aria-current="page"' : ""}>${title}</button>`;
 }
 
 function desktopTabsMarkup() {
@@ -1076,14 +1075,22 @@ document.addEventListener("click", async event => {
   }
   if (action === "toggle-menu") state.menuOpen = !state.menuOpen;
   if (action === "show-sheets") {
-    if (state.mode === "sheets") return;
+    if (state.mode === "sheets") {
+      state.menuOpen = false;
+      render();
+      return;
+    }
     Object.assign(state, { mode: "sheets", query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
     writeAppHistory("sheets");
     render();
     return;
   }
   if (action === "show-update") {
-    if (state.mode === "update") return;
+    if (state.mode === "update") {
+      state.menuOpen = false;
+      render();
+      return;
+    }
     Object.assign(state, { mode: "update", query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true });
     writeAppHistory("update");
     render();
