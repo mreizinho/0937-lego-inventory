@@ -380,8 +380,8 @@ function batchTypeMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel">
     <div class="batch-heading"><p>LOTE</p><h2>Que movimento queres preparar?</h2><span>As condições comuns serão pedidas apenas quando concluíres a picagem.</span></div>
     <div class="batch-type-options">
-      <button type="button" class="batch-type entrada" data-action="batch-type" data-batch-type="entrada"><img src="public/options/entrada.png" alt=""><span><strong>ENTRADA</strong><small>Registar todos os sets recebidos</small></span></button>
-      <button type="button" class="batch-type saida" data-action="batch-type" data-batch-type="saida"><img src="public/options/saida.png" alt=""><span><strong>SAÍDA</strong><small>Retirar todos os sets picados</small></span></button>
+      <button type="button" class="option-card batch-type entrada" data-action="batch-type" data-batch-type="entrada"><span class="mode-option-image"><img src="public/options/entrada.png" alt=""></span><span><strong>ENTRADA</strong><small>Registar todos os sets recebidos</small></span><b>›</b></button>
+      <button type="button" class="option-card batch-type saida" data-action="batch-type" data-batch-type="saida"><span class="mode-option-image"><img src="public/options/saida.png" alt=""></span><span><strong>SAÍDA</strong><small>Retirar todos os sets picados</small></span><b>›</b></button>
     </div>
     <button type="button" class="batch-text-button" data-action="batch-cancel">Cancelar</button>
   </section></section>`;
