@@ -209,6 +209,7 @@ html,body{height:100%;overflow:hidden}
 .actions-copy .option-card>b{font-size:26px}
 .actions-legal{margin:14px 0 0}
 @media(max-width:850px){
+  .sheets-page.actions-page{padding:12px 10px 18px}
   .actions-copy{padding:16px}
   .actions-copy .actions-eyebrow{order:1;text-align:left}
   .sheets-copy.actions-copy>p.actions-tagline{order:2;margin-bottom:0;text-align:left}
