@@ -377,7 +377,7 @@ function batchResumePromptMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel batch-resume-prompt">
     <div class="batch-heading"><p>LOTE EM CURSO</p><h2>Existe uma picagem por concluir</h2><span>Encontrámos uma ${state.batch.movementType === "saida" ? "saída" : "entrada"} em lote com ${units} ${units === 1 ? "unidade" : "unidades"} e ${references} ${references === 1 ? "referência" : "referências"}.</span></div>
     <p>Queres continuar a leitura corrente ou apagá-la e começar um novo lote?</p>
-    <div class="batch-actions"><button type="button" class="secondary batch-delete-draft" data-action="batch-discard-draft">APAGAR LEITURA</button><button type="button" class="primary" data-action="batch-continue-draft">CONTINUAR</button></div>
+    <div class="batch-actions"><button type="button" class="secondary batch-delete-draft" data-action="batch-discard-draft">APAGAR LEITURA</button><button type="button" class="secondary batch-view-draft" data-action="batch-view-draft">VER LOTE</button><button type="button" class="primary" data-action="batch-continue-draft">CONTINUAR</button></div>
   </section></section>`;
 }
 
@@ -1366,6 +1366,14 @@ document.addEventListener("click", async event => {
     delete state.batch.resumePhase;
     persistBatchDraft();
     writeAppHistory(`batch-${state.batch.phase}`, true);
+    render();
+    return;
+  }
+  if (action === "batch-view-draft") {
+    state.batch.phase = "review";
+    delete state.batch.resumePhase;
+    persistBatchDraft();
+    writeAppHistory("batch-review", true);
     render();
     return;
   }
