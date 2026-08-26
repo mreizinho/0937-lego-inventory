@@ -303,13 +303,18 @@ function bricksetUpdateMarkup() {
   </article></section>`;
 }
 
-function keypadMarkup() {
+function keypadControlsMarkup(lookupAction = "lookup") {
   const numbers = [1,2,3,4,5,6,7,8,9].map(number => `<button data-digit="${number}">${number}</button>`).join("");
-  return `<section class="workspace"><section class="scan-panel"><div class="entry-keypad ${state.mode}">
+  return `
     <label for="entry-code">Digite o N.º do Set ou Código de Barras</label>
     <input id="entry-code" class="keypad-display" value="${escapeHtml(state.query)}" readonly inputmode="none" tabindex="-1" aria-label="Código introduzido através do teclado no ecrã">
-    <div class="number-grid">${numbers}<button class="delete-key" data-action="delete" aria-label="Apagar último dígito">C</button><button data-digit="0">0</button><button class="ok-key" data-action="lookup">OK</button></div>
-    <div class="keypad-actions"><button class="clear-key" data-action="clear">LIMPAR</button><button class="scanner-key" data-action="scanner">${icons.scanner} SCANNER</button></div>
+    <div class="number-grid">${numbers}<button class="delete-key" data-action="delete" aria-label="Apagar último dígito">C</button><button data-digit="0">0</button><button class="ok-key" data-action="${lookupAction}">OK</button></div>
+    <div class="keypad-actions"><button class="clear-key" data-action="clear">LIMPAR</button><button class="scanner-key" data-action="scanner">${icons.scanner} SCANNER</button></div>`;
+}
+
+function keypadMarkup() {
+  return `<section class="workspace"><section class="scan-panel"><div class="entry-keypad ${state.mode}">
+    ${keypadControlsMarkup()}
   </div></section></section>`;
 }
 
@@ -407,9 +412,7 @@ function batchScanMarkup() {
   const units = batchUnitCount();
   return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel">
     <div class="batch-heading"><p>${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
-    <label class="code-label" for="lego-code">Código do conjunto ou EAN</label>
-    <div class="code-row"><div class="code-input"><span>▥</span><input id="lego-code" value="${escapeHtml(state.query)}" placeholder="Ex.: 10300 ou 5702017153186" inputmode="numeric" autocomplete="off"><kbd>ENTER</kbd></div><button class="search-button" data-action="batch-add-code">Adicionar</button></div>
-    <button class="scanner-button batch-scanner-button" data-action="scanner">${icons.scanner}<span><strong>Ler continuamente com scanner</strong><small>A leitura adiciona logo uma unidade ao lote</small></span></button>
+    <div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div>
     <div class="batch-counter"><strong>${units}</strong><span>${units === 1 ? "unidade" : "unidades"}</span><i></i><strong>${references}</strong><span>${references === 1 ? "referência" : "referências"}</span></div>
     ${batchMiniListMarkup()}
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="secondary" data-action="batch-review"${references ? "" : " disabled"}>PAUSAR / REVER</button><button type="button" class="primary" data-action="batch-conditions"${references ? "" : " disabled"}>CONCLUIR</button></div>
@@ -1843,7 +1846,7 @@ document.addEventListener("keydown", async event => {
     if (state.mode === "lote") await addCodeToBatch(state.query);
     else lookup();
   }
-  const keypadActive = (state.mode === "entrada" || state.mode === "saida") && !state.selected && !state.scannerOpen;
+  const keypadActive = ((state.mode === "entrada" || state.mode === "saida") && !state.selected || state.mode === "lote" && state.batch.phase === "scan") && !state.scannerOpen;
   if (!keypadActive || event.ctrlKey || event.metaKey || event.altKey) return;
   if (/^\d$/.test(event.key)) {
     event.preventDefault();
@@ -1868,7 +1871,8 @@ document.addEventListener("keydown", async event => {
   }
   if (event.key === "Enter") {
     event.preventDefault();
-    lookup();
+    if (state.mode === "lote") await addCodeToBatch(state.query);
+    else lookup();
   }
 });
 
