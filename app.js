@@ -436,7 +436,7 @@ function batchScanMarkup() {
 
 function batchKeypadPopoutMarkup() {
   return `<div class="batch-keypad-popout-root">
-    <header class="batch-keypad-popout-header"><strong>TECLADO DO LOTE</strong><button type="button" data-action="batch-keypad-dock">${icons.dock}<span>DOCK</span></button></header>
+    <header class="batch-keypad-popout-header"><strong>TECLADO DE APOIO</strong><button type="button" data-action="batch-keypad-dock">${icons.dock}<span>DOCK</span></button></header>
     <main class="batch-keypad-popout-main"><div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div></main>
   </div>`;
 }
@@ -539,7 +539,7 @@ async function openBatchKeypadPopout() {
     const popoutWindow = await window.documentPictureInPicture.requestWindow({ width: 500, height: 640, disallowReturnToOpener: true });
     batchKeypadWindow = popoutWindow;
     const popoutDocument = popoutWindow.document;
-    popoutDocument.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teclado do lote</title>';
+    popoutDocument.head.innerHTML = '<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Teclado de apoio</title>';
     copyStylesToBatchKeypadWindow(popoutDocument);
     popoutDocument.documentElement.className = "batch-keypad-popout-html";
     popoutDocument.body.className = "batch-keypad-popout-body";
