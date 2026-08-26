@@ -239,3 +239,4 @@ html,body{height:100%;overflow:hidden}
 .batch-resume-prompt .batch-view-draft{border:0;background:#8b9093;color:#fff}
 .batch-actions [data-action="batch-cancel"]{background:#a65a55;color:#fff}
 .batch-remove-item{background:#1e1f20;color:#fff}
+.batch-mini-title{margin:0 0 8px;color:#333536;font-size:12px;font-weight:800;letter-spacing:.7px;text-transform:uppercase}

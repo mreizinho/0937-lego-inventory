@@ -415,6 +415,7 @@ function batchScanMarkup() {
     <div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div>
     <hr class="batch-keypad-divider">
     <div class="batch-counter"><strong>${units}</strong><span>${units === 1 ? "unidade" : "unidades"}</span><i></i><strong>${references}</strong><span>${references === 1 ? "referência" : "referências"}</span></div>
+    <p class="batch-mini-title">Últimas picagens</p>
     ${batchMiniListMarkup()}
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="secondary" data-action="batch-review"${references ? "" : " disabled"}>PAUSAR / REVER</button><button type="button" class="primary" data-action="batch-conditions"${references ? "" : " disabled"}>CONCLUIR</button></div>
   </section></section>`;
@@ -437,7 +438,7 @@ function batchAllocationMarkup(item) {
 function batchReviewMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel batch-review-panel">
     <div class="batch-heading"><p>PICAGEM EM PAUSA</p><h2>Rever lote</h2><span>${state.batch.items.length} ${state.batch.items.length === 1 ? "referência" : "referências"} · ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"}</span></div>
-    <div class="batch-review-list">${state.batch.items.map(item => `<article class="batch-item">
+    <div class="batch-review-list">${[...state.batch.items].reverse().map(item => `<article class="batch-item">
       <div class="batch-item-main"><span class="batch-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span><span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div><button type="button" class="batch-remove-item" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Remover ${escapeHtml(item.code)}">×</button></div>
       ${batchAllocationMarkup(item)}
     </article>`).join("")}</div>
@@ -793,11 +794,13 @@ async function addCodeToBatch(rawCode, fromScanner = false) {
   }
   if (!item) {
     item = { ...found, qty: 0, locations, allocations: Object.create(null) };
-    state.batch.items.push(item);
   }
   item.locations = locations;
   item.qty = (Number(item.qty) || 0) + 1;
   if (state.batch.movementType === "saida") item.allocations = allocateAcrossLocations(locations, item.qty);
+  const previousIndex = state.batch.items.indexOf(item);
+  if (previousIndex >= 0) state.batch.items.splice(previousIndex, 1);
+  state.batch.items.push(item);
   state.query = "";
   persistBatchDraft();
   showMovementNotice(`${found.code} adicionado · ${item.qty} ${item.qty === 1 ? "unidade" : "unidades"}.`, "success");
