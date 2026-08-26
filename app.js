@@ -371,6 +371,16 @@ function batchTypeMarkup() {
   </section></section>`;
 }
 
+function batchResumePromptMarkup() {
+  const units = batchUnitCount();
+  const references = state.batch.items.length;
+  return `<section class="workspace batch-page"><section class="batch-panel batch-resume-prompt">
+    <div class="batch-heading"><p>LOTE EM CURSO</p><h2>Existe uma picagem por concluir</h2><span>Encontrámos uma ${state.batch.movementType === "saida" ? "saída" : "entrada"} em lote com ${units} ${units === 1 ? "unidade" : "unidades"} e ${references} ${references === 1 ? "referência" : "referências"}.</span></div>
+    <p>Queres continuar a leitura corrente ou apagá-la e começar um novo lote?</p>
+    <div class="batch-actions"><button type="button" class="secondary batch-delete-draft" data-action="batch-discard-draft">APAGAR LEITURA</button><button type="button" class="primary" data-action="batch-continue-draft">CONTINUAR</button></div>
+  </section></section>`;
+}
+
 function batchMiniListMarkup() {
   if (!state.batch.items.length) return `<p class="batch-empty">Ainda não foi picado nenhum conjunto.</p>`;
   return `<div class="batch-mini-list">${state.batch.items.slice(-4).reverse().map(item => `<div><span><b>${escapeHtml(item.code)}</b><small>${escapeHtml(item.name)}</small></span><strong>${item.qty} un.</strong></div>`).join("")}</div>`;
@@ -436,6 +446,7 @@ function batchConditionsMarkup() {
 
 function batchMarkup() {
   if (!state.batch.movementType || state.batch.phase === "type") return batchTypeMarkup();
+  if (state.batch.phase === "resume") return batchResumePromptMarkup();
   if (state.batch.phase === "review") return batchReviewMarkup();
   if (state.batch.phase === "conditions") return batchConditionsMarkup();
   return batchScanMarkup();
@@ -1327,7 +1338,13 @@ document.addEventListener("click", async event => {
     state.movementForm = movementFormForMode(state.mode);
     state.locationStock = [];
     state.photoMetaVisible = true;
-    if (state.mode === "lote") state.batch = restoreBatchDraft();
+    if (state.mode === "lote") {
+      state.batch = restoreBatchDraft();
+      if (state.batch.items.length) {
+        state.batch.resumePhase = state.batch.phase;
+        state.batch.phase = "resume";
+      }
+    }
     writeAppHistory("mode");
     render();
     return;
@@ -1344,6 +1361,20 @@ document.addEventListener("click", async event => {
   if (action === "scanner") { openBarcodeScanner(); return; }
   if (action === "close-scanner") { window.history.back(); return; }
   if (action === "focus-camera") { focusBarcodeCamera(event); return; }
+  if (action === "batch-continue-draft") {
+    state.batch.phase = state.batch.resumePhase || "scan";
+    delete state.batch.resumePhase;
+    persistBatchDraft();
+    writeAppHistory(`batch-${state.batch.phase}`, true);
+    render();
+    return;
+  }
+  if (action === "batch-discard-draft") {
+    clearBatchDraft();
+    writeAppHistory("mode", true);
+    render();
+    return;
+  }
   if (action === "batch-type") {
     const movementType = event.target.closest("[data-batch-type]")?.dataset.batchType;
     if (!['entrada', 'saida'].includes(movementType)) return;
