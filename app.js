@@ -91,6 +91,7 @@ let lastQuaggaScanAt = Number.NEGATIVE_INFINITY;
 let barcodeFrameCanvas = null;
 let movementNoticeTimer = null;
 let mobileSwipeGesture = null;
+let mobileSwipeAnimating = false;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -314,16 +315,51 @@ function render() {
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
 }
 
-function activateAdjacentMobileTab(direction) {
+function waitForMobileSwipeAnimation(element) {
+  return new Promise(resolve => {
+    let timer;
+    const finish = event => {
+      if (event && event.target !== element) return;
+      window.clearTimeout(timer);
+      element.removeEventListener("animationend", finish);
+      resolve();
+    };
+    element.addEventListener("animationend", finish, { once: true });
+    timer = window.setTimeout(finish, 260);
+  });
+}
+
+async function activateAdjacentMobileTab(direction) {
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
   const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
-  if (currentIndex < 0 || nextMode === undefined) return;
+  if (currentIndex < 0 || nextMode === undefined || mobileSwipeAnimating) return;
   const action = nextMode === null ? "home" : nextMode === "sheets" ? "show-sheets" : "show-update";
-  document.querySelector(`.desktop-tabs [data-action="${action}"]`)?.click();
+  const tab = document.querySelector(`.desktop-tabs [data-action="${action}"]`);
+  if (!tab) return;
+  if (window.matchMedia("(prefers-reduced-motion:reduce)").matches) {
+    tab.click();
+    return;
+  }
+  mobileSwipeAnimating = true;
+  try {
+    const outgoing = document.querySelector(".app-content");
+    outgoing?.classList.add(direction > 0 ? "mobile-swipe-exit-left" : "mobile-swipe-exit-right");
+    if (outgoing) await waitForMobileSwipeAnimation(outgoing);
+    tab.click();
+    const incoming = document.querySelector(".app-content");
+    const incomingClass = direction > 0 ? "mobile-swipe-enter-right" : "mobile-swipe-enter-left";
+    incoming?.classList.add(incomingClass);
+    if (incoming) {
+      await waitForMobileSwipeAnimation(incoming);
+      incoming.classList.remove(incomingClass);
+    }
+  } finally {
+    mobileSwipeAnimating = false;
+  }
 }
 
 function canStartMobileTabSwipe(event) {
-  if (!window.matchMedia("(max-width:850px)").matches || state.menuOpen || state.scannerOpen || !MOBILE_SWIPE_MODES.includes(state.mode)) return false;
+  if (!window.matchMedia("(max-width:850px)").matches || mobileSwipeAnimating || state.menuOpen || state.scannerOpen || !MOBILE_SWIPE_MODES.includes(state.mode)) return false;
   if (!event.target.closest?.(".app-content")) return false;
   return !event.target.closest?.("input, textarea, select, [contenteditable='true']");
 }
@@ -899,7 +935,7 @@ document.addEventListener("touchend", event => {
   const deltaY = touch.clientY - gesture.y;
   if (Math.abs(deltaX) < 65 || Math.abs(deltaX) <= Math.abs(deltaY) * 1.25 || performance.now() - gesture.startedAt > 900) return;
   event.preventDefault();
-  activateAdjacentMobileTab(deltaX < 0 ? 1 : -1);
+  void activateAdjacentMobileTab(deltaX < 0 ? 1 : -1);
 }, { passive: false });
 
 document.addEventListener("touchcancel", () => {
