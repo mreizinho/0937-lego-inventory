@@ -10,6 +10,7 @@ const APP_HISTORY_ID = "0937-lego-inventory";
 const BATCH_DRAFT_KEY = "legoInventoryBatchDraft";
 const INVENTORY_DRAFT_KEY = "legoInventoryInventoryDraft";
 const SCANNER_CAMERA_KEY = "legoInventoryScannerCamera";
+const SCANNER_SUCCESS_DURATION_MS = 1800;
 const MOBILE_SWIPE_MODES = [null, "sheets", "update"];
 
 function emptyMovementForm(defaults = {}) {
@@ -1489,7 +1490,7 @@ function showScannerSuccessOverlay(resumeScan) {
   if (scannerSuccessTimer) window.clearTimeout(scannerSuccessTimer);
   scannerSuccessResume = resumeScan;
   overlay.removeAttribute("hidden");
-  scannerSuccessTimer = window.setTimeout(() => dismissScannerSuccessOverlay(), 900);
+  scannerSuccessTimer = window.setTimeout(() => dismissScannerSuccessOverlay(), SCANNER_SUCCESS_DURATION_MS);
 }
 
 function stopBarcodeCamera() {
