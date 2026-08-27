@@ -6,6 +6,7 @@ const APPS_SCRIPT_ID = "AKfycbylP4b2SrjUHjHZhFdQAOkda65AXJTS8tRiYASjQuB12qaMvS3D
 const GOOGLE_OAUTH_SCOPE = "openid email https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/script.external_request";
 const TOKEN_KEY = "googleSheetsAccessToken";
 const TOKEN_SCOPE_KEY = "googleSheetsAccessTokenScope";
+const TOKEN_EXPIRES_KEY = "googleSheetsAccessTokenExpiresAt";
 const APP_HISTORY_ID = "0937-lego-inventory";
 const BATCH_DRAFT_KEY = "legoInventoryBatchDraft";
 const INVENTORY_DRAFT_KEY = "legoInventoryInventoryDraft";
@@ -285,6 +286,8 @@ let movementNoticeTimer = null;
 let mobileSwipeGesture = null;
 let mobileSwipeAnimating = false;
 let batchKeypadWindow = null;
+let googleAuthRequest = null;
+let googleTokenRefreshTimer = null;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -1513,50 +1516,108 @@ async function appendMovement() {
   return response.json();
 }
 
+function clearStoredGoogleToken() {
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_SCOPE_KEY);
+  sessionStorage.removeItem(TOKEN_EXPIRES_KEY);
+}
+
+function waitForGoogleOauth(timeoutMs = 6000) {
+  if (window.google?.accounts?.oauth2) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      if (window.google?.accounts?.oauth2 || Date.now() - startedAt >= timeoutMs) {
+        window.clearInterval(timer);
+        resolve(Boolean(window.google?.accounts?.oauth2));
+      }
+    }, 80);
+  });
+}
+
+function scheduleGoogleTokenRefresh(expiresInSeconds = 3600) {
+  window.clearTimeout(googleTokenRefreshTimer);
+  const refreshIn = Math.max(30000, (Math.max(120, Number(expiresInSeconds) || 3600) - 120) * 1000);
+  googleTokenRefreshTimer = window.setTimeout(() => requestGoogleAccessToken("", true), refreshIn);
+}
+
+async function requestGoogleAccessToken(prompt, silent = false) {
+  if (googleAuthRequest) return googleAuthRequest;
+  googleAuthRequest = (async () => {
+    const oauthReady = await waitForGoogleOauth();
+    if (!oauthReady) {
+      if (!silent) state.loginError = "A preparar o login Google. Tenta novamente.";
+      state.checkingCredentials = false;
+      render();
+      return false;
+    }
+    if (!silent || !state.loggedIn) {
+      state.checkingCredentials = true;
+      render();
+    }
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = success => {
+        if (settled) return;
+        settled = true;
+        state.checkingCredentials = false;
+        render();
+        resolve(success);
+      };
+      const client = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: GOOGLE_OAUTH_SCOPE, callback: async response => {
+        if (!response.access_token) {
+          if (!silent) state.loginError = `Não foi possível iniciar sessão com Google${response.error ? ` (${response.error})` : ""}.`;
+          finish(false);
+          return;
+        }
+        try {
+          await loadCatalog(response.access_token);
+          state.accessToken = response.access_token;
+          const expiresIn = Math.max(120, Number(response.expires_in) || 3600);
+          sessionStorage.setItem(TOKEN_KEY, response.access_token);
+          sessionStorage.setItem(TOKEN_SCOPE_KEY, GOOGLE_OAUTH_SCOPE);
+          sessionStorage.setItem(TOKEN_EXPIRES_KEY, String(Date.now() + expiresIn * 1000));
+          scheduleGoogleTokenRefresh(expiresIn);
+          if (state.mode === "consulta" && !state.consultation.loaded) {
+            state.consultation.error = "";
+            await loadConsultationData();
+          }
+          finish(true);
+        } catch (error) {
+          const messages = { NO_ACCESS: "Esta conta Google não tem acesso ao inventário.", AUTH_EXPIRED: "A autorização Google expirou. Inicia sessão novamente.", SPREADSHEET_NOT_FOUND: "O spreadsheet do inventário não foi encontrado.", SHEET_NOT_FOUND: "A folha BricksetSets não foi encontrada.", MOVEMENTS_SHEET_NOT_FOUND: "Não foi possível encontrar o sheet Movimentos.", USERINFO_ERROR: "Não foi possível obter o email da conta Google.", USER_EMAIL_MISSING: "A conta Google não disponibilizou um endereço de email." };
+          if (!silent) state.loginError = messages[error.message] || `Não foi possível consultar o Google Sheets (${error.message}).`;
+          if (!state.accessToken) {
+            state.loggedIn = false;
+            state.catalogRows = [];
+          }
+          finish(false);
+        }
+      }, error_callback: () => {
+        if (!silent) state.loginError = "Não foi possível abrir o login Google.";
+        finish(false);
+      }});
+      try { client.requestAccessToken({ prompt }); }
+      catch {
+        if (!silent) state.loginError = "Não foi possível abrir o login Google.";
+        finish(false);
+      }
+    });
+  })();
+  try { return await googleAuthRequest; }
+  finally { googleAuthRequest = null; }
+}
+
 function loginWithGoogle() {
   if (state.checkingCredentials) return;
   state.menuOpen = false;
   state.loginError = "";
-  if (!window.google?.accounts?.oauth2) {
-    state.loginError = "A preparar o login Google. Tenta novamente.";
-    render();
-    return;
-  }
-  const client = window.google.accounts.oauth2.initTokenClient({ client_id: GOOGLE_CLIENT_ID, scope: GOOGLE_OAUTH_SCOPE, callback: async response => {
-    if (!response.access_token) {
-      state.checkingCredentials = false;
-      state.loginError = `Não foi possível iniciar sessão com Google${response.error ? ` (${response.error})` : ""}.`;
-      render();
-      return;
-    }
-    state.checkingCredentials = true;
-    render();
-    try {
-      await loadCatalog(response.access_token);
-      state.accessToken = response.access_token;
-      sessionStorage.setItem(TOKEN_KEY, response.access_token);
-      sessionStorage.setItem(TOKEN_SCOPE_KEY, GOOGLE_OAUTH_SCOPE);
-    } catch (error) {
-      const messages = { NO_ACCESS: "Esta conta Google não tem acesso ao inventário.", AUTH_EXPIRED: "A autorização Google expirou. Inicia sessão novamente.", SPREADSHEET_NOT_FOUND: "O spreadsheet do inventário não foi encontrado.", SHEET_NOT_FOUND: "A folha BricksetSets não foi encontrada.", MOVEMENTS_SHEET_NOT_FOUND: "A folha Movimentos não foi encontrada.", USERINFO_ERROR: "Não foi possível obter o email da conta Google.", USER_EMAIL_MISSING: "A conta Google não disponibilizou um endereço de email." };
-      state.loggedIn = false;
-      state.catalogRows = [];
-      state.loginError = messages[error.message] || `Não foi possível consultar o Google Sheets (${error.message}).`;
-    }
-    state.checkingCredentials = false;
-    if (state.loggedIn && state.mode === "consulta") {
-      state.consultation.error = "";
-      await loadConsultationData();
-      return;
-    }
-    render();
-  }});
-  client.requestAccessToken({ prompt: "select_account" });
+  requestGoogleAccessToken("select_account", false);
 }
 
 function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_SCOPE_KEY);
+  clearStoredGoogleToken();
+  window.clearTimeout(googleTokenRefreshTimer);
   Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, catalogUpdating: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, storageOptions: [], locationStock: [], consultation: emptyConsultationState(), status: "Sessão terminada" });
   render();
 }
@@ -2885,29 +2946,23 @@ async function restoreSession() {
   render();
   const token = sessionStorage.getItem(TOKEN_KEY);
   const storedScope = sessionStorage.getItem(TOKEN_SCOPE_KEY);
-  if (!token) {
+  const expiresAt = Number(sessionStorage.getItem(TOKEN_EXPIRES_KEY)) || 0;
+  if (token && storedScope === GOOGLE_OAUTH_SCOPE && (!expiresAt || expiresAt > Date.now() + 30000)) {
+    try {
+      await loadCatalog(token);
+      state.accessToken = token;
+      scheduleGoogleTokenRefresh(expiresAt ? Math.max(120, (expiresAt - Date.now()) / 1000) : 3600);
+      state.checkingCredentials = false;
+      render();
+      return;
+    } catch { clearStoredGoogleToken(); }
+  }
+  else if (token || storedScope) clearStoredGoogleToken();
+  const restored = await requestGoogleAccessToken("", true);
+  if (!restored && !state.loggedIn) {
     state.checkingCredentials = false;
     render();
-    return;
   }
-  if (storedScope !== GOOGLE_OAUTH_SCOPE) {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(TOKEN_SCOPE_KEY);
-    state.checkingCredentials = false;
-    state.loginError = "Inicia sessão novamente para autorizar a actualização do catálogo Brickset.";
-    render();
-    return;
-  }
-  try {
-    await loadCatalog(token);
-    state.accessToken = token;
-  } catch {
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(TOKEN_SCOPE_KEY);
-    state.loginError = "A sessão Google expirou. Inicia sessão novamente.";
-  }
-  state.checkingCredentials = false;
-  render();
 }
 
 writeAppHistory("home", true);
