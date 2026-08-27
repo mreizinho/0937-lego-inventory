@@ -550,7 +550,7 @@ function consultationFilterMarkup() {
       ${filterField("origin", "Origem", "Ex.: Doação")}
       ${filterField("obs", "Obs", "Texto nas observações")}
       ${filterField("storage", "Local", "Ex.: Vault")}
-      <div class="consultation-value-filter"><span class="consultation-field-label">Valor</span><span class="consultation-value-controls"><select data-consultation-filter="valueOperator" aria-label="Comparação do valor">${option("less", "Menor que")}${option("greater", "Maior que")}${option("between", "Entre")}</select>${valueControl("valueMin", "valor em euros", "Valor")}${valueControl("valueMax", "valor máximo em euros", "Máximo", filters.valueOperator !== "between")}</span></div>
+      <div class="consultation-value-filter"><span class="consultation-field-label">Valor</span><span class="consultation-value-controls"><span class="select-control consultation-value-operator"><select data-consultation-filter="valueOperator" aria-label="Comparação do valor">${option("less", "Menor que")}${option("greater", "Maior que")}${option("between", "Entre")}</select><span class="select-arrow" aria-hidden="true">▾</span></span>${valueControl("valueMin", "valor em euros", "Valor")}${valueControl("valueMax", "valor máximo em euros", "Máximo", filters.valueOperator !== "between")}</span></div>
       <div class="consultation-actions"><button type="button" class="secondary" data-action="consultation-clear">LIMPAR</button><button type="button" class="primary" data-action="consultation-apply">CONSULTAR</button></div>
     </div>
     <p class="consultation-filter-note">Origem e Obs pesquisam o histórico de movimentos do set.</p>
