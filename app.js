@@ -242,7 +242,7 @@ function desktopTabsMarkup() {
 function mainHeaderMarkup(extraClass = "", menuId = "main-menu") {
   return `<header class="masthead${extraClass ? ` ${extraClass}` : ""}">
     <a class="brand" href="https://comunidade0937.com/forum/" aria-label="Comunidade 0937">
-      <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg?v=20260826c"><img src="public/comunidade-0937.svg?v=20260826c" alt="Comunidade 0937"></picture>
+      <picture><source media="(max-width:850px)" srcset="public/comunidade-0937-bricks.svg?v=20260826c"><img src="public/comunidade-0937-full.svg?v=20260827" alt="Comunidade 0937"></picture>
     </a>
     ${desktopTabsMarkup()}
     <div class="header-menu">
