@@ -604,7 +604,7 @@ function batchTypeMarkup() {
 
 function inventoryNameMarkup() {
   return `<section class="workspace sheets-page inventory-name-page"><article class="sheets-explainer inventory-name-explainer">
-    <div class="sheets-visual inventory-visual"><img src="public/icon-inv.png" alt="Ilustração de uma caixa LEGO com lista de inventário"></div>
+    <div class="sheets-visual inventory-visual"><img src="public/icon-inv.png?v=20260827-thin-outline-title" alt="Ilustração de uma caixa LEGO com lista de inventário"></div>
     <div class="sheets-copy inventory-name-copy">
       <p class="sheets-eyebrow">INVENTÁRIO</p>
       <h2>Criar novo inventário</h2>
