@@ -539,6 +539,7 @@ function consultationFilterMarkup() {
   const filters = state.consultation.filters;
   const option = (value, label) => `<option value="${value}"${filters.valueOperator === value ? " selected" : ""}>${label}</option>`;
   const filterField = (key, label, placeholder) => `<label><span>${label}</span><input type="search" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" placeholder="${escapeHtml(placeholder)}" autocomplete="off"></label>`;
+  const valueControl = (key, label, placeholder, hidden = false) => `<span class="qty-control consultation-value-stepper" data-consultation-value-control="${key}"${hidden ? " hidden" : ""}><input type="number" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" min="0" step="1" placeholder="${placeholder}" aria-label="${label}"><span class="qty-stepper"><button type="button" data-action="consultation-value-increase" data-consultation-value="${key}" aria-label="Aumentar ${label.toLocaleLowerCase("pt-PT")}">▴</button><button type="button" data-action="consultation-value-decrease" data-consultation-value="${key}" aria-label="Diminuir ${label.toLocaleLowerCase("pt-PT")}">▾</button></span></span>`;
   const activeFilters = consultationFilterCount(filters);
   return `<details class="consultation-filters" open>
     <summary><span>Filtros</span><strong id="consultation-filter-count">${activeFilters} ${activeFilters === 1 ? "ativo" : "ativos"}</strong></summary>
@@ -549,7 +550,7 @@ function consultationFilterMarkup() {
       ${filterField("origin", "Origem", "Ex.: Doação")}
       ${filterField("obs", "Obs", "Texto nas observações")}
       ${filterField("storage", "Local", "Ex.: Vault")}
-      <label class="consultation-value-filter"><span>Valor</span><span class="consultation-value-controls"><select data-consultation-filter="valueOperator" aria-label="Comparação do valor">${option("less", "Menor que")}${option("greater", "Maior que")}${option("between", "Entre")}</select><input type="number" data-consultation-filter="valueMin" value="${escapeHtml(filters.valueMin)}" min="0" step="0.01" placeholder="Valor" aria-label="Valor em euros"><input type="number" data-consultation-filter="valueMax" value="${escapeHtml(filters.valueMax)}" min="0" step="0.01" placeholder="Máximo" aria-label="Valor máximo em euros"${filters.valueOperator === "between" ? "" : " hidden"}></span></label>
+      <div class="consultation-value-filter"><span class="consultation-field-label">Valor</span><span class="consultation-value-controls"><select data-consultation-filter="valueOperator" aria-label="Comparação do valor">${option("less", "Menor que")}${option("greater", "Maior que")}${option("between", "Entre")}</select>${valueControl("valueMin", "valor em euros", "Valor")}${valueControl("valueMax", "valor máximo em euros", "Máximo", filters.valueOperator !== "between")}</span></div>
       <div class="consultation-actions"><button type="button" class="secondary" data-action="consultation-clear">LIMPAR</button><button type="button" class="primary" data-action="consultation-apply">CONSULTAR</button></div>
     </div>
     <p class="consultation-filter-note">Origem e Obs pesquisam o histórico de movimentos do set.</p>
@@ -2190,6 +2191,20 @@ document.addEventListener("click", async event => {
     else await loadConsultationData();
     return;
   }
+  if (action === "consultation-value-increase" || action === "consultation-value-decrease") {
+    const button = event.target.closest("[data-consultation-value]");
+    const key = button?.dataset.consultationValue;
+    if (!key || !(key in state.consultation.filters)) return;
+    const current = parseMoneyValue(state.consultation.filters[key]);
+    const next = Math.max(0, (Number.isFinite(current) ? current : 0) + (action === "consultation-value-increase" ? 1 : -1));
+    state.consultation.filters[key] = next.toFixed(2);
+    const input = document.querySelector(`[data-consultation-filter="${key}"]`);
+    if (input) input.value = state.consultation.filters[key];
+    const count = consultationFilterCount();
+    const counter = document.querySelector("#consultation-filter-count");
+    if (counter) counter.textContent = `${count} ${count === 1 ? "ativo" : "ativos"}`;
+    return;
+  }
   if (action === "consultation-clear") {
     state.consultation.filters = emptyConsultationFilters();
     state.consultation.appliedFilters = emptyConsultationFilters();
@@ -2622,11 +2637,12 @@ document.addEventListener("input", event => {
   if (consultationFilter !== undefined) {
     state.consultation.filters[consultationFilter] = event.target.value;
     if (consultationFilter === "valueOperator") {
-      const maximum = document.querySelector('[data-consultation-filter="valueMax"]');
+      const maximum = document.querySelector('[data-consultation-value-control="valueMax"]');
+      const maximumInput = maximum?.querySelector('[data-consultation-filter="valueMax"]');
       if (event.target.value !== "between") state.consultation.filters.valueMax = "";
       if (maximum) {
         maximum.hidden = event.target.value !== "between";
-        if (maximum.hidden) maximum.value = "";
+        if (maximum.hidden && maximumInput) maximumInput.value = "";
       }
     }
     const count = consultationFilterCount();
