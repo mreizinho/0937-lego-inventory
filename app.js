@@ -175,6 +175,8 @@ let quaggaScanPending = false;
 let lastQuaggaScanAt = Number.NEGATIVE_INFINITY;
 let barcodeFrameCanvas = null;
 let scannerAudioContext = null;
+let scannerSuccessTimer = null;
+let scannerSuccessResume = null;
 let movementNoticeTimer = null;
 let mobileSwipeGesture = null;
 let mobileSwipeAnimating = false;
@@ -370,7 +372,7 @@ function scannerMarkup() {
   return `<section class="camera-scanner" role="dialog" aria-modal="true" aria-labelledby="camera-scanner-title">
     <div class="camera-scanner-panel">
       <header><strong id="camera-scanner-title">LER CÓDIGO DE BARRAS</strong><button type="button" data-action="close-scanner" aria-label="Fechar leitor">${icons.close}</button></header>
-      <div class="camera-preview" data-action="focus-camera" role="button" tabindex="0" aria-label="Toque para focar a câmara"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span><span class="camera-focus-point" aria-hidden="true"></span></div>
+      <div class="camera-preview" data-action="focus-camera" role="button" tabindex="0" aria-label="Toque para focar a câmara"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span><span class="camera-focus-point" aria-hidden="true"></span><button type="button" class="camera-scan-success" data-action="dismiss-scan-success" aria-label="Leitura aceite. Tocar para continuar." hidden><span aria-hidden="true">✓</span></button></div>
       <p id="camera-scanner-status" role="status" aria-live="polite">${escapeHtml(state.scannerStatus)}</p>
     </div>
   </section>`;
@@ -1467,10 +1469,32 @@ function playScannerConfirmationBeep() {
   else play();
 }
 
+function dismissScannerSuccessOverlay(resume = true) {
+  if (scannerSuccessTimer) window.clearTimeout(scannerSuccessTimer);
+  scannerSuccessTimer = null;
+  document.querySelector(".camera-scan-success")?.setAttribute("hidden", "");
+  const resumeScan = scannerSuccessResume;
+  scannerSuccessResume = null;
+  if (resume) resumeScan?.();
+}
+
+function showScannerSuccessOverlay(resumeScan) {
+  const overlay = document.querySelector(".camera-scan-success");
+  if (!overlay) {
+    resumeScan();
+    return;
+  }
+  if (scannerSuccessTimer) window.clearTimeout(scannerSuccessTimer);
+  scannerSuccessResume = resumeScan;
+  overlay.removeAttribute("hidden");
+  scannerSuccessTimer = window.setTimeout(() => dismissScannerSuccessOverlay(), 900);
+}
+
 function stopBarcodeCamera() {
   barcodeSession += 1;
   if (barcodeScanTimer) window.clearTimeout(barcodeScanTimer);
   if (barcodeFocusTimer) window.clearTimeout(barcodeFocusTimer);
+  dismissScannerSuccessOverlay(false);
   barcodeScanTimer = null;
   barcodeFocusTimer = null;
   quaggaScanPending = false;
@@ -1663,6 +1687,12 @@ async function openBarcodeScanner(addHistory = true) {
                   if (added) {
                     playScannerConfirmationBeep();
                     if (navigator.vibrate) navigator.vibrate(45);
+                    if (state.mode === "lote") {
+                      showScannerSuccessOverlay(() => {
+                        if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
+                      });
+                      return;
+                    }
                   }
                 }
                 barcodeScanTimer = window.setTimeout(scanFrame, 140);
@@ -1808,6 +1838,7 @@ document.addEventListener("click", async event => {
   if (action === "batch-keypad-popout") { await openBatchKeypadPopout(); return; }
   if (action === "scanner") { openBarcodeScanner(); return; }
   if (action === "close-scanner") { window.history.back(); return; }
+  if (action === "dismiss-scan-success") { dismissScannerSuccessOverlay(); return; }
   if (action === "focus-camera") { focusBarcodeCamera(event); return; }
   if (action === "batch-continue-draft") {
     state.batch.phase = state.batch.resumePhase || "scan";
