@@ -9,6 +9,7 @@ const TOKEN_SCOPE_KEY = "googleSheetsAccessTokenScope";
 const APP_HISTORY_ID = "0937-lego-inventory";
 const BATCH_DRAFT_KEY = "legoInventoryBatchDraft";
 const INVENTORY_DRAFT_KEY = "legoInventoryInventoryDraft";
+const SCANNER_CAMERA_KEY = "legoInventoryScannerCamera";
 const MOBILE_SWIPE_MODES = [null, "sheets", "update"];
 
 function emptyMovementForm(defaults = {}) {
@@ -177,6 +178,7 @@ let barcodeFrameCanvas = null;
 let scannerAudioContext = null;
 let scannerSuccessTimer = null;
 let scannerSuccessResume = null;
+let barcodeVideoDevices = [];
 let movementNoticeTimer = null;
 let mobileSwipeGesture = null;
 let mobileSwipeAnimating = false;
@@ -372,7 +374,7 @@ function scannerMarkup() {
   return `<section class="camera-scanner" role="dialog" aria-modal="true" aria-labelledby="camera-scanner-title">
     <div class="camera-scanner-panel">
       <header><strong id="camera-scanner-title">LER CÓDIGO DE BARRAS</strong><button type="button" data-action="close-scanner" aria-label="Fechar leitor">${icons.close}</button></header>
-      <div class="camera-preview" data-action="focus-camera" role="button" tabindex="0" aria-label="Toque para focar a câmara"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span><span class="camera-focus-point" aria-hidden="true"></span><button type="button" class="camera-scan-success" data-action="dismiss-scan-success" aria-label="Leitura aceite. Tocar para continuar." hidden><span aria-hidden="true">✓</span></button></div>
+      <div class="camera-preview" data-action="focus-camera" role="button" tabindex="0" aria-label="Toque para focar a câmara"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span><span class="camera-focus-point" aria-hidden="true"></span><div class="camera-controls" aria-label="Controlos da câmara"><button type="button" data-action="switch-scanner-camera" hidden>CÂMARA <span data-camera-position></span></button><button type="button" data-action="cycle-scanner-zoom" hidden>ZOOM <span data-camera-zoom></span></button><button type="button" data-action="toggle-scanner-torch" aria-pressed="false" hidden>LUZ</button></div><button type="button" class="camera-scan-success" data-action="dismiss-scan-success" aria-label="Leitura aceite. Tocar para continuar." hidden><span aria-hidden="true">✓</span></button></div>
       <p id="camera-scanner-status" role="status" aria-live="polite">${escapeHtml(state.scannerStatus)}</p>
     </div>
   </section>`;
@@ -1505,6 +1507,26 @@ function stopBarcodeCamera() {
   if (video) video.srcObject = null;
 }
 
+function barcodeGuideCrop(video) {
+  const guide = document.querySelector(".camera-guide");
+  const videoBounds = video.getBoundingClientRect();
+  const guideBounds = guide?.getBoundingClientRect();
+  if (!guideBounds || !videoBounds.width || !videoBounds.height) {
+    return { x: 0, y: 0, width: video.videoWidth, height: video.videoHeight };
+  }
+  const displayScale = Math.max(videoBounds.width / video.videoWidth, videoBounds.height / video.videoHeight);
+  const renderedWidth = video.videoWidth * displayScale;
+  const renderedHeight = video.videoHeight * displayScale;
+  const overflowX = (renderedWidth - videoBounds.width) / 2;
+  const overflowY = (renderedHeight - videoBounds.height) / 2;
+  const padding = 12;
+  const x = Math.min(video.videoWidth - 1, Math.max(0, (guideBounds.left - videoBounds.left - padding + overflowX) / displayScale));
+  const y = Math.min(video.videoHeight - 1, Math.max(0, (guideBounds.top - videoBounds.top - padding + overflowY) / displayScale));
+  const width = Math.max(1, Math.min(video.videoWidth - x, (guideBounds.width + padding * 2) / displayScale));
+  const height = Math.max(1, Math.min(video.videoHeight - y, (guideBounds.height + padding * 2) / displayScale));
+  return { x, y, width, height };
+}
+
 function decodeEanWithQuagga(video) {
   if (!window.Quagga || quaggaScanPending || video.readyState < 2 || !video.videoWidth || !video.videoHeight) {
     return Promise.resolve("");
@@ -1512,13 +1534,14 @@ function decodeEanWithQuagga(video) {
 
   quaggaScanPending = true;
   barcodeFrameCanvas ||= document.createElement("canvas");
-  const maximumWidth = 1280;
-  const scale = Math.min(1, maximumWidth / video.videoWidth);
-  barcodeFrameCanvas.width = Math.round(video.videoWidth * scale);
-  barcodeFrameCanvas.height = Math.round(video.videoHeight * scale);
+  const crop = barcodeGuideCrop(video);
+  const maximumWidth = 1600;
+  const scale = Math.min(1, maximumWidth / crop.width);
+  barcodeFrameCanvas.width = Math.max(1, Math.round(crop.width * scale));
+  barcodeFrameCanvas.height = Math.max(1, Math.round(crop.height * scale));
   const context = barcodeFrameCanvas.getContext("2d", { alpha: false });
-  context.drawImage(video, 0, 0, barcodeFrameCanvas.width, barcodeFrameCanvas.height);
-  const source = barcodeFrameCanvas.toDataURL("image/jpeg", .92);
+  context.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, barcodeFrameCanvas.width, barcodeFrameCanvas.height);
+  const source = barcodeFrameCanvas.toDataURL("image/png");
 
   return new Promise(resolve => {
     try {
@@ -1526,8 +1549,8 @@ function decodeEanWithQuagga(video) {
         src: source,
         numOfWorkers: 0,
         locate: true,
-        inputStream: { size: 800 },
-        locator: { halfSample: true, patchSize: "medium" },
+        inputStream: { size: Math.min(1200, barcodeFrameCanvas.width) },
+        locator: { halfSample: false, patchSize: "medium" },
         decoder: { readers: ["ean_reader", "ean_8_reader"], multiple: false },
       }, result => {
         quaggaScanPending = false;
@@ -1552,6 +1575,104 @@ async function enableContinuousCameraFocus(track) {
   if (!focusModes.includes("continuous")) return false;
   await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
   return true;
+}
+
+function barcodeTrackCapabilities(track = barcodeStream?.getVideoTracks()[0]) {
+  if (typeof track?.getCapabilities !== "function") return {};
+  try { return track.getCapabilities() || {}; } catch { return {}; }
+}
+
+function barcodeCameraSwitchHint() {
+  return barcodeVideoDevices.length > 1 ? " Se continuar desfocada, toque em CÂMARA para mudar de lente." : "";
+}
+
+async function refreshBarcodeCameraControls(track = barcodeStream?.getVideoTracks()[0]) {
+  if (!track) return;
+  try {
+    const videoDevices = (await navigator.mediaDevices.enumerateDevices()).filter(device => device.kind === "videoinput");
+    const rearCameras = videoDevices.filter(device => /(back|rear|environment|traseir|trás)/i.test(device.label));
+    barcodeVideoDevices = rearCameras.length ? rearCameras : videoDevices;
+  } catch {
+    barcodeVideoDevices = [];
+  }
+
+  const settings = typeof track.getSettings === "function" ? track.getSettings() : {};
+  const currentIndex = barcodeVideoDevices.findIndex(device => device.deviceId === settings.deviceId);
+  const cameraButton = document.querySelector('[data-action="switch-scanner-camera"]');
+  const cameraPosition = cameraButton?.querySelector("[data-camera-position]");
+  if (cameraButton) cameraButton.hidden = barcodeVideoDevices.length < 2;
+  if (cameraPosition) cameraPosition.textContent = `${Math.max(1, currentIndex + 1)}/${barcodeVideoDevices.length}`;
+
+  const capabilities = barcodeTrackCapabilities(track);
+  const zoomButton = document.querySelector('[data-action="cycle-scanner-zoom"]');
+  const zoomLabel = zoomButton?.querySelector("[data-camera-zoom]");
+  const zoomSupported = Number.isFinite(capabilities.zoom?.min) && Number.isFinite(capabilities.zoom?.max) && capabilities.zoom.max > capabilities.zoom.min;
+  if (zoomButton) zoomButton.hidden = !zoomSupported;
+  if (zoomLabel && zoomSupported) zoomLabel.textContent = `${Number(settings.zoom || capabilities.zoom.min).toLocaleString("pt-PT", { maximumFractionDigits: 1 })}×`;
+
+  const torchButton = document.querySelector('[data-action="toggle-scanner-torch"]');
+  const torchSupported = capabilities.torch === true;
+  if (torchButton) {
+    torchButton.hidden = !torchSupported;
+    torchButton.setAttribute("aria-pressed", settings.torch ? "true" : "false");
+  }
+
+  if (settings.deviceId) {
+    try { localStorage.setItem(SCANNER_CAMERA_KEY, settings.deviceId); } catch { /* A seleção funciona apenas nesta sessão. */ }
+  }
+}
+
+async function applyPreferredBarcodeZoom(track) {
+  const capabilities = barcodeTrackCapabilities(track);
+  if (!Number.isFinite(capabilities.zoom?.min) || !Number.isFinite(capabilities.zoom?.max) || capabilities.zoom.max <= capabilities.zoom.min) return;
+  const currentZoom = Number(track.getSettings?.().zoom || capabilities.zoom.min);
+  const preferredZoom = Math.min(capabilities.zoom.max, Math.max(capabilities.zoom.min, 1.5));
+  if (currentZoom >= preferredZoom - .05) return;
+  try { await track.applyConstraints({ advanced: [{ zoom: preferredZoom }] }); } catch { /* Mantém o zoom escolhido pelo dispositivo. */ }
+}
+
+async function switchBarcodeCamera() {
+  if (barcodeVideoDevices.length < 2) return;
+  const currentDeviceId = barcodeStream?.getVideoTracks()[0]?.getSettings?.().deviceId;
+  const currentIndex = barcodeVideoDevices.findIndex(device => device.deviceId === currentDeviceId);
+  const nextCamera = barcodeVideoDevices[(currentIndex + 1 + barcodeVideoDevices.length) % barcodeVideoDevices.length];
+  if (!nextCamera) return;
+  try { localStorage.setItem(SCANNER_CAMERA_KEY, nextCamera.deviceId); } catch { /* A seleção funciona apenas nesta sessão. */ }
+  closeBarcodeScanner();
+  await new Promise(resolve => window.setTimeout(resolve, 120));
+  await openBarcodeScanner(false);
+}
+
+async function cycleBarcodeZoom() {
+  const track = barcodeStream?.getVideoTracks()[0];
+  const capabilities = barcodeTrackCapabilities(track);
+  if (!track || !Number.isFinite(capabilities.zoom?.min) || !Number.isFinite(capabilities.zoom?.max)) return;
+  const currentZoom = Number(track.getSettings?.().zoom || capabilities.zoom.min);
+  const zoomLevels = [...new Set([capabilities.zoom.min, 1, 1.5, 2, 3, capabilities.zoom.max]
+    .filter(value => value >= capabilities.zoom.min && value <= capabilities.zoom.max)
+    .map(value => Math.round(value * 10) / 10))].sort((left, right) => left - right);
+  const nextZoom = zoomLevels.find(value => value > currentZoom + .05) ?? zoomLevels[0];
+  try {
+    await track.applyConstraints({ advanced: [{ zoom: nextZoom }] });
+    await refreshBarcodeCameraControls(track);
+    updateScannerStatus(`Zoom ${nextZoom.toLocaleString("pt-PT", { maximumFractionDigits: 1 })}× ativo.${barcodeCameraSwitchHint()}`);
+  } catch {
+    updateScannerStatus("Não foi possível alterar o zoom desta câmara.");
+  }
+}
+
+async function toggleBarcodeTorch() {
+  const track = barcodeStream?.getVideoTracks()[0];
+  if (!track || barcodeTrackCapabilities(track).torch !== true) return;
+  const torchButton = document.querySelector('[data-action="toggle-scanner-torch"]');
+  const enable = torchButton?.getAttribute("aria-pressed") !== "true";
+  try {
+    await track.applyConstraints({ advanced: [{ torch: enable }] });
+    await refreshBarcodeCameraControls(track);
+    updateScannerStatus(`${enable ? "Luz ligada." : "Luz desligada."}${barcodeCameraSwitchHint()}`);
+  } catch {
+    updateScannerStatus("Não foi possível controlar a luz desta câmara.");
+  }
 }
 
 async function focusBarcodeCamera(event) {
@@ -1587,10 +1708,37 @@ async function focusBarcodeCamera(event) {
       updateScannerStatus("Foco automático ativo. Mantenha o código imóvel.");
       return;
     }
-    updateScannerStatus("O foco manual não está disponível neste dispositivo. Afaste ou aproxime ligeiramente a câmara.");
+    const zoomCapabilities = barcodeTrackCapabilities(track).zoom;
+    const zoomHint = Number.isFinite(zoomCapabilities?.max) && zoomCapabilities.max > zoomCapabilities.min
+      ? " Em alternativa, afaste ligeiramente a câmara e use ZOOM."
+      : " Em alternativa, afaste ou aproxime ligeiramente a câmara.";
+    updateScannerStatus(`Esta lente não permite foco manual.${barcodeCameraSwitchHint()}${zoomHint}`);
   } catch {
     updateScannerStatus("Não foi possível ajustar o foco neste dispositivo.");
   }
+}
+
+function scannerVideoConstraints(deviceId = "") {
+  return {
+    ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: "environment" } }),
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
+    frameRate: { ideal: 30 },
+  };
+}
+
+async function requestBarcodeCameraStream() {
+  let preferredDeviceId = "";
+  try { preferredDeviceId = localStorage.getItem(SCANNER_CAMERA_KEY) || ""; } catch { /* Usa a câmara traseira predefinida. */ }
+  if (preferredDeviceId) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({ audio: false, video: scannerVideoConstraints(preferredDeviceId) });
+    } catch (error) {
+      if (!['OverconstrainedError', 'NotFoundError'].includes(error.name)) throw error;
+      try { localStorage.removeItem(SCANNER_CAMERA_KEY); } catch { /* Prossegue sem preferência guardada. */ }
+    }
+  }
+  return navigator.mediaDevices.getUserMedia({ audio: false, video: scannerVideoConstraints() });
 }
 
 function closeBarcodeScanner() {
@@ -1630,10 +1778,7 @@ async function openBarcodeScanner(addHistory = true) {
       if (formats.length) detector = new window.BarcodeDetector({ formats });
     }
     if (!detector && !quaggaAvailable) throw new Error("EAN_NOT_SUPPORTED");
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
-    });
+    const stream = await requestBarcodeCameraStream();
     if (!state.scannerOpen || session !== barcodeSession) {
       stream.getTracks().forEach(track => track.stop());
       return;
@@ -1650,7 +1795,9 @@ async function openBarcodeScanner(addHistory = true) {
     const videoTrack = stream.getVideoTracks()[0];
     let continuousFocusEnabled = false;
     try { continuousFocusEnabled = await enableContinuousCameraFocus(videoTrack); } catch { /* Continua com o foco escolhido pelo dispositivo. */ }
-    updateScannerStatus(continuousFocusEnabled ? "Aponte a câmara para o código EAN. Toque na imagem para focar." : "Aponte a câmara para o código EAN.");
+    await applyPreferredBarcodeZoom(videoTrack);
+    await refreshBarcodeCameraControls(videoTrack);
+    updateScannerStatus(`${continuousFocusEnabled ? "Foco automático ativo. " : ""}Aponte a câmara para o código EAN.${barcodeCameraSwitchHint()}`);
     let lastUnknownEan = "";
     let lastBatchEan = "";
     let lastBatchEanAt = Number.NEGATIVE_INFINITY;
@@ -1839,6 +1986,9 @@ document.addEventListener("click", async event => {
   if (action === "scanner") { openBarcodeScanner(); return; }
   if (action === "close-scanner") { window.history.back(); return; }
   if (action === "dismiss-scan-success") { dismissScannerSuccessOverlay(); return; }
+  if (action === "switch-scanner-camera") { await switchBarcodeCamera(); return; }
+  if (action === "cycle-scanner-zoom") { await cycleBarcodeZoom(); return; }
+  if (action === "toggle-scanner-torch") { await toggleBarcodeTorch(); return; }
   if (action === "focus-camera") { focusBarcodeCamera(event); return; }
   if (action === "batch-continue-draft") {
     state.batch.phase = state.batch.resumePhase || "scan";
