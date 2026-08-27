@@ -9,11 +9,11 @@
   </style>
   <g class="favicon-outline">
     <rect x="32" y="40" width="192" height="48"/>
-    <rect x="40" y="96" width="176" height="124"/>
+    <rect x="40" y="88" width="176" height="132"/>
     <rect x="88" y="120" width="80" height="20" rx="8"/>
   </g>
   <g class="favicon-fill">
     <rect x="32" y="40" width="192" height="48"/>
-    <path fill-rule="evenodd" d="M40 96h176v124H40V96Zm56 24a8 8 0 0 0-8 8v4a8 8 0 0 0 8 8h64a8 8 0 0 0 8-8v-4a8 8 0 0 0-8-8H96Z"/>
+    <path fill-rule="evenodd" d="M40 88h176v132H40V88Zm56 32a8 8 0 0 0-8 8v4a8 8 0 0 0 8 8h64a8 8 0 0 0 8-8v-4a8 8 0 0 0-8-8H96Z"/>
   </g>
 </svg>
