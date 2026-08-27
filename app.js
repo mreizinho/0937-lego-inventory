@@ -448,7 +448,7 @@ function batchTypeMarkup() {
 function inventoryNameMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel inventory-name-panel">
     <div class="batch-heading"><p>INVENTÁRIO</p><h2>Criar novo inventário</h2><span>Dá um nome ao novo sheet. A estrutura será igual à do sheet Movimentos e só será criada quando concluíres a picagem.</span></div>
-    <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><div class="inventory-sheet-name-control"><span>INV_</span><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(inventorySheetBaseName(state.batch.sheetName))}" maxlength="96" required autocomplete="off" placeholder="Ex.: Teste"></div><small>Será criado como <b>${escapeHtml(inventorySheetTitle(state.batch.sheetName || "…"))}</b> apenas quando concluíres.</small></div>
+    <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><div class="inventory-sheet-name-control"><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(inventorySheetBaseName(state.batch.sheetName))}" maxlength="96" required autocomplete="off" placeholder="Ex.: Teste"></div></div>
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="primary" data-action="inventory-start"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A VERIFICAR…" : "COMEÇAR PICAGEM"}</button></div>
   </section></section>`;
 }
