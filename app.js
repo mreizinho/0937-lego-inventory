@@ -603,11 +603,16 @@ function batchTypeMarkup() {
 }
 
 function inventoryNameMarkup() {
-  return `<section class="workspace batch-page"><section class="batch-panel inventory-name-panel">
-    <div class="batch-heading"><p>INVENTÁRIO</p><h2>Criar novo inventário</h2><span>Dá um nome ao novo sheet. A estrutura será igual à do sheet Movimentos e só será criada quando concluíres a picagem.</span></div>
-    <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><div class="inventory-sheet-name-control"><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(inventorySheetBaseName(state.batch.sheetName))}" maxlength="96" required autocomplete="off" placeholder="Ex.: Teste"></div></div>
-    <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="primary" data-action="inventory-start"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A VERIFICAR…" : "COMEÇAR PICAGEM"}</button></div>
-  </section></section>`;
+  return `<section class="workspace sheets-page inventory-name-page"><article class="sheets-explainer inventory-name-explainer">
+    <div class="sheets-visual inventory-visual"><img src="public/icon-inv.png" alt="Ilustração de uma caixa LEGO com lista de inventário"></div>
+    <div class="sheets-copy inventory-name-copy">
+      <p class="sheets-eyebrow">INVENTÁRIO</p>
+      <h2>Criar novo inventário</h2>
+      <p>Dá um nome ao novo sheet. A estrutura será igual à do sheet Movimentos e só será criada quando concluíres a picagem.</p>
+      <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><div class="inventory-sheet-name-control"><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(inventorySheetBaseName(state.batch.sheetName))}" maxlength="96" required autocomplete="off" placeholder="Ex.: Teste"></div></div>
+      <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="primary" data-action="inventory-start"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A VERIFICAR…" : "COMEÇAR PICAGEM"}</button></div>
+    </div>
+  </article></section>`;
 }
 
 function batchResumePromptMarkup() {
