@@ -345,7 +345,7 @@ function bricksetUpdateMarkup() {
     ? `Em execução<span class="update-running-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span>`
     : escapeHtml(bricksetLastUpdated());
   return `<section class="workspace sheets-page update-page"><article class="sheets-explainer">
-    <div class="sheets-visual update-visual"><img src="public/brickset.png" alt="Logótipo Brickset"></div>
+    <div class="sheets-visual update-visual"><img src="public/icon-brickset.png" alt="Logótipo Brickset"></div>
     <div class="sheets-copy update-copy">
       <p class="sheets-eyebrow update-eyebrow">CATÁLOGO</p>
       <h2>Actualizar a base de dados Brickset</h2>
