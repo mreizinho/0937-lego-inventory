@@ -18,6 +18,14 @@ function emptyMovementForm(defaults = {}) {
   return { origin: defaults.origin || "", storage, storageChoice: storage, qty: "1", obs: "", allocations: Object.create(null) };
 }
 
+function emptyConsultationFilters() {
+  return { set: "", theme: "", name: "", origin: "", obs: "", storage: "", valueOperator: "less", valueMin: "", valueMax: "" };
+}
+
+function emptyConsultationState() {
+  return { filters: emptyConsultationFilters(), appliedFilters: emptyConsultationFilters(), rows: [], items: [], loading: false, loaded: false, error: "" };
+}
+
 function emptyBatchState(userEmail = "", inventory = false) {
   return {
     version: 1,
@@ -56,6 +64,7 @@ const state = {
   photoMetaVisible: true,
   scannerOpen: false,
   scannerStatus: "",
+  consultation: emptyConsultationState(),
   batch: emptyBatchState(),
   status: "Catálogo sincronizado há 2 min",
 };
@@ -72,6 +81,98 @@ function isCurrentHistoryStep(step) {
 function sortStorageNames(names) {
   return [...new Set(names.map(value => String(value ?? "").trim()).filter(Boolean))]
     .sort((left, right) => left.localeCompare(right, "pt", { sensitivity: "base", numeric: true }));
+}
+
+function normalizeSearchText(value) {
+  return String(value ?? "").trim().toLocaleLowerCase("pt-PT").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function parseMoneyValue(value) {
+  let normalized = String(value ?? "").trim().replace(/[^\d,.-]/g, "");
+  if (!normalized) return Number.NaN;
+  if (normalized.includes(",") && normalized.includes(".")) {
+    normalized = normalized.lastIndexOf(",") > normalized.lastIndexOf(".")
+      ? normalized.replace(/\./g, "").replace(",", ".")
+      : normalized.replace(/,/g, "");
+  } else {
+    normalized = normalized.replace(",", ".");
+  }
+  return Number(normalized);
+}
+
+function formatMoneyValue(value) {
+  if (!Number.isFinite(value)) return "Valor não disponível";
+  return new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR" }).format(value);
+}
+
+function consultationFilterCount(filters = state.consultation.filters) {
+  const stringFilters = ["set", "theme", "name", "origin", "obs", "storage"].filter(key => String(filters[key] || "").trim()).length;
+  const hasValueFilter = String(filters.valueMin || "").trim() || filters.valueOperator === "between" && String(filters.valueMax || "").trim();
+  return stringFilters + (hasValueFilter ? 1 : 0);
+}
+
+function consultationItems(rows = state.consultation.rows) {
+  const items = new Map();
+  rows.forEach(row => {
+    const code = String(row[0] ?? "").trim();
+    if (!code) return;
+    let item = items.get(code);
+    if (!item) {
+      item = {
+        code,
+        name: String(row[1] ?? "").trim() || `Conjunto ${code}`,
+        year: Number(row[2]) || 0,
+        theme: String(row[3] ?? "").trim() || "LEGO",
+        imageUrl: String(row[6] ?? "").trim(),
+        value: parseMoneyValue(row[10]),
+        locations: new Map(),
+        origins: [],
+        observations: [],
+      };
+      items.set(code, item);
+    }
+    if (!item.imageUrl) item.imageUrl = String(row[6] ?? "").trim();
+    const origin = String(row[5] ?? "").trim();
+    const observation = String(row[11] ?? "").trim();
+    if (origin) item.origins.push(origin);
+    if (observation) item.observations.push(observation);
+    if (!Number.isFinite(item.value)) item.value = parseMoneyValue(row[10]);
+    const storage = String(row[7] ?? "").trim();
+    const quantity = Number(String(row[8] ?? "0").replace(",", "."));
+    if (storage && Number.isFinite(quantity)) item.locations.set(storage, (item.locations.get(storage) || 0) + quantity);
+  });
+
+  return [...items.values()].map(item => {
+    const locations = [...item.locations.entries()]
+      .map(([storage, stock]) => ({ storage, stock }))
+      .filter(location => location.stock > 0)
+      .sort((left, right) => left.storage.localeCompare(right.storage, "pt", { sensitivity: "base", numeric: true }));
+    return { ...item, locations, stock: locations.reduce((total, location) => total + location.stock, 0) };
+  }).filter(item => item.stock > 0);
+}
+
+function consultationResults() {
+  const filters = state.consultation.appliedFilters;
+  const matchesText = (value, filter) => !normalizeSearchText(filter) || normalizeSearchText(value).includes(normalizeSearchText(filter));
+  const minimum = parseMoneyValue(filters.valueMin);
+  const maximum = parseMoneyValue(filters.valueMax);
+  const items = state.consultation.loaded ? state.consultation.items : consultationItems();
+  return items.filter(item => {
+    if (!matchesText(item.code, filters.set)) return false;
+    if (!matchesText(item.theme, filters.theme)) return false;
+    if (!matchesText(item.name, filters.name)) return false;
+    if (!matchesText(item.origins.join(" "), filters.origin)) return false;
+    if (!matchesText(item.observations.join(" "), filters.obs)) return false;
+    if (!item.locations.some(location => matchesText(location.storage, filters.storage))) return false;
+    if (Number.isFinite(minimum)) {
+      if (!Number.isFinite(item.value)) return false;
+      if (filters.valueOperator === "less" && !(item.value < minimum)) return false;
+      if (filters.valueOperator === "greater" && !(item.value > minimum)) return false;
+      if (filters.valueOperator === "between" && item.value < minimum) return false;
+    }
+    if (filters.valueOperator === "between" && Number.isFinite(maximum) && (!Number.isFinite(item.value) || item.value > maximum)) return false;
+    return true;
+  }).sort((left, right) => left.code.localeCompare(right.code, "pt", { numeric: true, sensitivity: "base" }));
 }
 
 function allocateAcrossLocations(locations, requestedQuantity) {
@@ -216,7 +317,7 @@ function menuMarkup(id) {
     ${simpleMenuItem("Actualizar Brickset", "show-update", state.mode === "update")}
     <div class="menu-separator" role="separator"></div>
     ${simpleMenuItem("Inventário", "show-inventory", state.mode === "inventario")}
-    ${simpleMenuItem("Consultas", "noop")}
+    ${simpleMenuItem("Consultas", "show-consultations", state.mode === "consulta")}
     <div class="menu-separator" role="separator"></div>
     ${simpleMenuItem(sessionLabel, sessionAction)}
   </div>`;
@@ -234,7 +335,7 @@ function desktopTabsMarkup() {
     <button type="button" class="desktop-tab${state.mode === "sheets" ? " active" : ""}" data-action="show-sheets"${state.mode === "sheets" ? ' aria-current="page"' : ""}>Google Sheets</button>
     <button type="button" class="desktop-tab${state.mode === "update" ? " active" : ""}" data-action="show-update"${state.mode === "update" ? ' aria-current="page"' : ""}>Actualizar</button>
     <button type="button" class="desktop-tab${state.mode === "inventario" ? " active" : ""}" data-action="show-inventory"${state.mode === "inventario" ? ' aria-current="page"' : ""}>Inventário</button>
-    <button type="button" class="desktop-tab" data-action="noop">Consultas</button>
+    <button type="button" class="desktop-tab${state.mode === "consulta" ? " active" : ""}" data-action="show-consultations"${state.mode === "consulta" ? ' aria-current="page"' : ""}>Consultas</button>
     <button type="button" class="desktop-tab desktop-session" data-action="${sessionAction}">${sessionLabel}</button>
   </nav>`;
 }
@@ -432,6 +533,54 @@ function genericModeMarkup() {
   return `<section class="workspace"><section class="scan-panel"><div class="scan-heading"><span class="big-icon ${state.mode}">▦</span><div><h2>${title}</h2></div></div>
     <label class="code-label" for="lego-code">Código do conjunto ou EAN</label><div class="code-row"><div class="code-input"><span>▥</span><input id="lego-code" value="${escapeHtml(state.query)}" placeholder="Ex.: 10300 ou 5702017153186" inputmode="numeric" autocomplete="off"><kbd>ENTER</kbd></div><button class="search-button" data-action="lookup">Pesquisar</button></div>
     <div class="divider"><span>ou</span></div><button class="scanner-button" data-action="scanner"><span class="scan-corners">▦</span><strong>Ler com scanner</strong><small>O leitor envia o EAN automaticamente</small></button><p class="scanner-tip"><b>i</b> Leitores USB/Bluetooth funcionam como teclado: basta apontar e ler.</p>${result}</section></section>`;
+}
+
+function consultationFilterMarkup() {
+  const filters = state.consultation.filters;
+  const option = (value, label) => `<option value="${value}"${filters.valueOperator === value ? " selected" : ""}>${label}</option>`;
+  const filterField = (key, label, placeholder) => `<label><span>${label}</span><input type="search" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" placeholder="${escapeHtml(placeholder)}" autocomplete="off"></label>`;
+  const activeFilters = consultationFilterCount(filters);
+  return `<details class="consultation-filters" open>
+    <summary><span>Filtros</span><strong id="consultation-filter-count">${activeFilters} ${activeFilters === 1 ? "ativo" : "ativos"}</strong></summary>
+    <div class="consultation-filter-grid">
+      ${filterField("set", "Set", "Ex.: 10255")}
+      ${filterField("name", "Nome", "Ex.: Assembly")}
+      ${filterField("theme", "Tema", "Ex.: Icons")}
+      ${filterField("origin", "Origem", "Ex.: Doação")}
+      ${filterField("obs", "Obs", "Texto nas observações")}
+      ${filterField("storage", "Local", "Ex.: Vault")}
+      <label class="consultation-value-filter"><span>Valor</span><span class="consultation-value-controls"><select data-consultation-filter="valueOperator" aria-label="Comparação do valor">${option("less", "Menor que")}${option("greater", "Maior que")}${option("between", "Entre")}</select><input type="number" data-consultation-filter="valueMin" value="${escapeHtml(filters.valueMin)}" min="0" step="0.01" placeholder="Valor" aria-label="Valor em euros"><input type="number" data-consultation-filter="valueMax" value="${escapeHtml(filters.valueMax)}" min="0" step="0.01" placeholder="Máximo" aria-label="Valor máximo em euros"${filters.valueOperator === "between" ? "" : " hidden"}></span></label>
+      <div class="consultation-actions"><button type="button" class="secondary" data-action="consultation-clear">LIMPAR</button><button type="button" class="primary" data-action="consultation-apply">CONSULTAR</button></div>
+    </div>
+    <p class="consultation-filter-note">Origem e Obs pesquisam o histórico de movimentos do set.</p>
+  </details>`;
+}
+
+function consultationResultMarkup(item) {
+  const locations = item.locations.map(location => `<span><b>${escapeHtml(location.storage)}</b><small>${location.stock.toLocaleString("pt-PT")} un.</small></span>`).join("");
+  const value = Number.isFinite(item.value) ? `${formatMoneyValue(item.value)} / un.` : "Valor não disponível";
+  return `<article class="consultation-item">
+    <span class="consultation-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span>
+    <span class="consultation-item-copy"><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme)} · ${item.year || "—"}</small></span>
+    <span class="consultation-locations">${locations}</span>
+    <span class="consultation-item-summary"><b>${item.stock.toLocaleString("pt-PT")} un.</b><small>${escapeHtml(value)}</small></span>
+  </article>`;
+}
+
+function consultationMarkup() {
+  const consultation = state.consultation;
+  const heading = `<div class="batch-heading"><p>CONSULTAS</p><h2>Consultar inventário</h2><span>Pesquisa as existências atuais e as respetivas localizações.</span></div>`;
+  if (consultation.error) return `<section class="workspace consultation-page"><section class="batch-panel consultation-panel">${heading}<div class="consultation-error"><p>${escapeHtml(consultation.error)}</p><button type="button" data-action="consultation-retry">TENTAR NOVAMENTE</button></div></section></section>`;
+  if (consultation.loading || !consultation.loaded) return `<section class="workspace consultation-page"><section class="batch-panel consultation-panel">${heading}<p class="consultation-message">A carregar movimentos…</p></section></section>`;
+  const results = consultationResults();
+  const units = results.reduce((total, item) => total + item.stock, 0);
+  const resultList = results.length ? results.map(consultationResultMarkup).join("") : `<p class="consultation-empty">Não foram encontradas existências com estes filtros.</p>`;
+  return `<section class="workspace consultation-page"><section class="batch-panel consultation-panel">
+    ${heading}
+    ${consultationFilterMarkup()}
+    <div class="consultation-results-heading"><h3>Resultados</h3><span>${results.length} ${results.length === 1 ? "referência" : "referências"} · ${units.toLocaleString("pt-PT")} ${units === 1 ? "unidade" : "unidades"}</span></div>
+    <div class="consultation-results">${resultList}</div>
+  </section></section>`;
 }
 
 function batchTypeMarkup() {
@@ -677,7 +826,7 @@ function resultMarkup(item) {
 
 function render() {
   if (isBatchKeypadPoppedOut() && (!isBatchMode() || state.batch.phase !== "scan")) closeBatchKeypadPopout(false);
-  const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : isBatchMode() ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
+  const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.mode === "consulta" ? consultationMarkup() : isBatchMode() ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
   document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
   const appContent = document.querySelector(".app-content");
@@ -994,7 +1143,7 @@ function createMovementTimestamp() {
 }
 
 async function loadMovementStockRows() {
-  const range = encodeURIComponent("Movimentos!D2:L");
+  const range = encodeURIComponent("Movimentos!D2:O");
   const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`, {
     headers: { Authorization: `Bearer ${state.accessToken}` },
     cache: "no-store",
@@ -1004,6 +1153,34 @@ async function loadMovementStockRows() {
   if (response.status === 400 || response.status === 404) throw new Error("MOVEMENTS_SHEET_NOT_FOUND");
   if (!response.ok) throw new Error(`SHEETS_READ_ERROR_${response.status}`);
   return (await response.json()).values || [];
+}
+
+async function loadConsultationData() {
+  state.consultation.loading = true;
+  state.consultation.error = "";
+  render();
+  try {
+    state.consultation.rows = await loadMovementStockRows();
+    state.consultation.items = consultationItems(state.consultation.rows);
+    state.consultation.loaded = true;
+  } catch (error) {
+    const messages = {
+      AUTH_EXPIRED: "A sessão Google expirou. Inicia sessão novamente.",
+      READ_DENIED: "Esta conta não tem permissão para consultar os movimentos.",
+      MOVEMENTS_SHEET_NOT_FOUND: "Não foi possível encontrar o sheet Movimentos.",
+    };
+    state.consultation.rows = [];
+    state.consultation.items = [];
+    state.consultation.loaded = false;
+    state.consultation.error = messages[error.message] || "Não foi possível carregar as existências. Tenta novamente.";
+    if (error.message === "AUTH_EXPIRED") {
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_SCOPE_KEY);
+      Object.assign(state, { loggedIn: false, accessToken: "", userEmail: "", loginError: messages.AUTH_EXPIRED, checkingCredentials: false });
+    }
+  }
+  state.consultation.loading = false;
+  render();
 }
 
 function locationStockFromRows(rows, setNumber) {
@@ -1361,6 +1538,11 @@ function loginWithGoogle() {
       state.loginError = messages[error.message] || `Não foi possível consultar o Google Sheets (${error.message}).`;
     }
     state.checkingCredentials = false;
+    if (state.loggedIn && state.mode === "consulta") {
+      state.consultation.error = "";
+      await loadConsultationData();
+      return;
+    }
     render();
   }});
   client.requestAccessToken({ prompt: "select_account" });
@@ -1370,7 +1552,7 @@ function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_SCOPE_KEY);
-  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, catalogUpdating: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, storageOptions: [], locationStock: [], status: "Sessão terminada" });
+  Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, catalogUpdating: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, storageOptions: [], locationStock: [], consultation: emptyConsultationState(), status: "Sessão terminada" });
   render();
 }
 
@@ -1940,6 +2122,7 @@ document.addEventListener("click", async event => {
     state.movementForm = movementFormForMode(state.mode);
     state.locationStock = [];
     state.photoMetaVisible = true;
+    if (state.mode === "consulta") state.consultation = emptyConsultationState();
     if (isBatchMode()) {
       state.batch = restoreBatchDraft();
       if (state.batch.items.length) {
@@ -1949,6 +2132,7 @@ document.addEventListener("click", async event => {
     }
     writeAppHistory("mode");
     render();
+    if (state.mode === "consulta") await loadConsultationData();
     return;
   }
   const digit = event.target.closest("[data-digit]");
@@ -1960,6 +2144,23 @@ document.addEventListener("click", async event => {
   }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
+  if (action === "show-consultations") {
+    if (!state.loggedIn || !state.accessToken) {
+      state.menuOpen = false;
+      loginWithGoogle();
+      return;
+    }
+    if (state.mode === "consulta") {
+      state.menuOpen = false;
+      render();
+      return;
+    }
+    Object.assign(state, { mode: "consulta", query: "", selected: null, menuOpen: false, movementForm: emptyMovementForm(), movementNotice: null, locationStock: [], photoMetaVisible: true, consultation: emptyConsultationState() });
+    writeAppHistory("mode");
+    render();
+    await loadConsultationData();
+    return;
+  }
   if (action === "show-inventory") {
     if (!state.loggedIn || !state.accessToken) {
       state.menuOpen = false;
@@ -1984,6 +2185,36 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "batch-keypad-popout") { await openBatchKeypadPopout(); return; }
+  if (action === "consultation-retry") {
+    if (!state.loggedIn || !state.accessToken) loginWithGoogle();
+    else await loadConsultationData();
+    return;
+  }
+  if (action === "consultation-clear") {
+    state.consultation.filters = emptyConsultationFilters();
+    state.consultation.appliedFilters = emptyConsultationFilters();
+    render();
+    return;
+  }
+  if (action === "consultation-apply") {
+    const filters = state.consultation.filters;
+    const minimum = parseMoneyValue(filters.valueMin);
+    const maximum = parseMoneyValue(filters.valueMax);
+    const hasValueFilter = String(filters.valueMin || "").trim() || String(filters.valueMax || "").trim();
+    if (filters.valueOperator === "between" && hasValueFilter && (!Number.isFinite(minimum) || !Number.isFinite(maximum))) {
+      showMovementNotice("Indica os valores mínimo e máximo.", "error");
+      render();
+      return;
+    }
+    if (filters.valueOperator === "between" && minimum > maximum) {
+      showMovementNotice("O valor mínimo não pode ser superior ao valor máximo.", "error");
+      render();
+      return;
+    }
+    state.consultation.appliedFilters = { ...filters };
+    render();
+    return;
+  }
   if (action === "scanner") { openBarcodeScanner(); return; }
   if (action === "close-scanner") { window.history.back(); return; }
   if (action === "dismiss-scan-success") { dismissScannerSuccessOverlay(); return; }
@@ -2387,6 +2618,22 @@ document.addEventListener("click", async event => {
 });
 
 document.addEventListener("input", event => {
+  const consultationFilter = event.target.dataset?.consultationFilter;
+  if (consultationFilter !== undefined) {
+    state.consultation.filters[consultationFilter] = event.target.value;
+    if (consultationFilter === "valueOperator") {
+      const maximum = document.querySelector('[data-consultation-filter="valueMax"]');
+      if (event.target.value !== "between") state.consultation.filters.valueMax = "";
+      if (maximum) {
+        maximum.hidden = event.target.value !== "between";
+        if (maximum.hidden) maximum.value = "";
+      }
+    }
+    const count = consultationFilterCount();
+    const counter = document.querySelector("#consultation-filter-count");
+    if (counter) counter.textContent = `${count} ${count === 1 ? "ativo" : "ativos"}`;
+    return;
+  }
   if (event.target.dataset?.inventorySheetName !== undefined) {
     state.batch.sheetName = inventorySheetBaseName(event.target.value);
     event.target.value = state.batch.sheetName;
@@ -2587,6 +2834,12 @@ window.addEventListener("popstate", async event => {
     }
     render();
     if (historyState.step === "scanner") openBarcodeScanner(false);
+    return;
+  }
+
+  if (state.mode === "consulta") {
+    render();
+    if (!state.consultation.loaded && !state.consultation.loading && state.accessToken) await loadConsultationData();
     return;
   }
 
