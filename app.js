@@ -309,7 +309,7 @@ function optionsMarkup() {
 
 function googleSheetsMarkup() {
   return `<section class="workspace sheets-page"><article class="sheets-explainer">
-    <div class="sheets-visual"><img src="public/google-sheets.png" alt="Ilustração do Google Sheets"></div>
+    <div class="sheets-visual"><img src="public/icon-gsheets.png" alt="Ilustração do Google Sheets"></div>
     <div class="sheets-copy">
       <p class="sheets-eyebrow">BASE DE DADOS</p>
       <h2>Abrir o inventário no Google Sheets</h2>
