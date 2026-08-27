@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="16 16 224 224">
   <style>
-    .favicon-outline { fill: none; stroke: #02090e; stroke-width: 14; stroke-linejoin: round; }
+    .favicon-outline { fill: none; stroke: #02090e; stroke-width: 4; stroke-linejoin: round; }
     .favicon-fill { display: none; fill: #ffffff; }
     @media (prefers-color-scheme: dark) {
       .favicon-outline { display: none; }
