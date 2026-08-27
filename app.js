@@ -174,6 +174,7 @@ let barcodeFocusTimer = null;
 let quaggaScanPending = false;
 let lastQuaggaScanAt = Number.NEGATIVE_INFINITY;
 let barcodeFrameCanvas = null;
+let scannerAudioContext = null;
 let movementNoticeTimer = null;
 let mobileSwipeGesture = null;
 let mobileSwipeAnimating = false;
@@ -1427,6 +1428,45 @@ function updateScannerStatus(message) {
   if (status) status.textContent = message;
 }
 
+function prepareScannerConfirmationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    scannerAudioContext ||= new AudioContextClass();
+    if (scannerAudioContext.state === "suspended") void scannerAudioContext.resume().catch(() => {});
+    return scannerAudioContext;
+  } catch {
+    return null;
+  }
+}
+
+function playScannerConfirmationBeep() {
+  const context = prepareScannerConfirmationSound();
+  if (!context) return;
+  const play = () => {
+    try {
+      const start = context.currentTime;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(1150, start);
+      gain.gain.setValueAtTime(.0001, start);
+      gain.gain.exponentialRampToValueAtTime(.16, start + .008);
+      gain.gain.exponentialRampToValueAtTime(.0001, start + .08);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.addEventListener("ended", () => {
+        oscillator.disconnect();
+        gain.disconnect();
+      }, { once: true });
+      oscillator.start(start);
+      oscillator.stop(start + .085);
+    } catch { /* O som é apenas uma confirmação adicional. */ }
+  };
+  if (context.state === "suspended") void context.resume().then(play).catch(() => {});
+  else play();
+}
+
 function stopBarcodeCamera() {
   barcodeSession += 1;
   if (barcodeScanTimer) window.clearTimeout(barcodeScanTimer);
@@ -1538,6 +1578,7 @@ function closeBarcodeScanner() {
 
 async function openBarcodeScanner(addHistory = true) {
   if (state.scannerOpen) return;
+  prepareScannerConfirmationSound();
   state.scannerOpen = true;
   state.scannerStatus = "A preparar a câmara…";
   if (addHistory && !isCurrentHistoryStep("scanner")) writeAppHistory("scanner");
@@ -1619,11 +1660,15 @@ async function openBarcodeScanner(addHistory = true) {
                   updateScannerStatus(added
                     ? `${found.code} adicionado · ${batchUnitCount()} un. na picagem. Aponte para o próximo código.`
                     : `Não foi possível adicionar ${found.code}. Aponte para outro código.`);
-                  if (navigator.vibrate && added) navigator.vibrate(45);
+                  if (added) {
+                    playScannerConfirmationBeep();
+                    if (navigator.vibrate) navigator.vibrate(45);
+                  }
                 }
                 barcodeScanTimer = window.setTimeout(scanFrame, 140);
                 return;
               }
+              playScannerConfirmationBeep();
               state.query = ean;
               state.photoMetaVisible = true;
               stopBarcodeCamera();
