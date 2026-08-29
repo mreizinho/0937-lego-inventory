@@ -12,7 +12,7 @@ const BATCH_DRAFT_KEY = "legoInventoryBatchDraft";
 const INVENTORY_DRAFT_KEY = "legoInventoryInventoryDraft";
 const SCANNER_CAMERA_KEY = "legoInventoryScannerCamera";
 const SCANNER_SUCCESS_DURATION_MS = 1800;
-const MOBILE_SWIPE_MODES = [null, "sheets", "update"];
+const MOBILE_SWIPE_MODES = [null, "sheets", "update", "inventario"];
 
 function emptyMovementForm(defaults = {}) {
   const storage = defaults.storage || "";
@@ -887,7 +887,8 @@ function mobileSwipeVisualOffset(deltaX) {
 function mobileSwipeMarkupForMode(mode) {
   if (mode === null) return optionsMarkup();
   if (mode === "sheets") return googleSheetsMarkup();
-  return bricksetUpdateMarkup();
+  if (mode === "update") return bricksetUpdateMarkup();
+  return inventoryNameMarkup();
 }
 
 function prepareMobileSwipePreview(gesture, direction) {
@@ -969,7 +970,7 @@ async function activateAdjacentMobileTab(direction, gesture) {
     await returnMobileSwipeContent(gesture);
     return;
   }
-  const action = nextMode === null ? "home" : nextMode === "sheets" ? "show-sheets" : "show-update";
+  const action = nextMode === null ? "home" : nextMode === "sheets" ? "show-sheets" : nextMode === "update" ? "show-update" : "show-inventory";
   const tab = document.querySelector(`.desktop-tabs [data-action="${action}"]`);
   if (!tab) {
     await returnMobileSwipeContent(gesture);
