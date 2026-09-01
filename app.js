@@ -288,6 +288,7 @@ let mobileSwipeAnimating = false;
 let batchKeypadWindow = null;
 let googleAuthRequest = null;
 let googleTokenRefreshTimer = null;
+let googleTokenRefreshPending = false;
 
 const fallbackSets = [
   { code: "10300", ean: "5702017153186", name: "Back to the Future Time Machine", theme: "LEGO Icons", year: 2022, pieces: 1872, stock: 1, location: "Vitrine A · 02", color: "#d5e5ef" },
@@ -1543,14 +1544,15 @@ function waitForGoogleOauth(timeoutMs = 6000) {
 
 function scheduleGoogleTokenRefresh(expiresInSeconds = 3600) {
   window.clearTimeout(googleTokenRefreshTimer);
+  googleTokenRefreshPending = false;
   const refreshIn = Math.max(30000, (Math.max(120, Number(expiresInSeconds) || 3600) - 120) * 1000);
-  googleTokenRefreshTimer = window.setTimeout(() => requestGoogleAccessToken("", true), refreshIn);
+  googleTokenRefreshTimer = window.setTimeout(() => { googleTokenRefreshPending = true; }, refreshIn);
 }
 
 async function requestGoogleAccessToken(prompt, silent = false) {
   if (googleAuthRequest) return googleAuthRequest;
   googleAuthRequest = (async () => {
-    const oauthReady = await waitForGoogleOauth();
+    const oauthReady = Boolean(window.google?.accounts?.oauth2) || await waitForGoogleOauth();
     if (!oauthReady) {
       if (!silent) state.loginError = "A preparar o login Google. Tenta novamente.";
       state.checkingCredentials = false;
@@ -1583,6 +1585,7 @@ async function requestGoogleAccessToken(prompt, silent = false) {
           sessionStorage.setItem(TOKEN_KEY, response.access_token);
           sessionStorage.setItem(TOKEN_SCOPE_KEY, GOOGLE_OAUTH_SCOPE);
           sessionStorage.setItem(TOKEN_EXPIRES_KEY, String(Date.now() + expiresIn * 1000));
+          googleTokenRefreshPending = false;
           scheduleGoogleTokenRefresh(expiresIn);
           if (state.mode === "consulta" && !state.consultation.loaded) {
             state.consultation.error = "";
@@ -1615,6 +1618,7 @@ async function requestGoogleAccessToken(prompt, silent = false) {
 
 function loginWithGoogle() {
   if (state.checkingCredentials) return;
+  googleTokenRefreshPending = false;
   state.menuOpen = false;
   state.loginError = "";
   requestGoogleAccessToken("select_account", false);
@@ -1624,6 +1628,7 @@ function logoutGoogle() {
   if (state.accessToken && window.google) window.google.accounts.oauth2.revoke(state.accessToken);
   clearStoredGoogleToken();
   window.clearTimeout(googleTokenRefreshTimer);
+  googleTokenRefreshPending = false;
   Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, loggedIn: false, accessToken: "", userEmail: "", catalogRows: [], loginError: "", checkingCredentials: false, movementForm: emptyMovementForm(), movementSaving: false, catalogUpdating: false, movementNotice: null, lastMovementDefaults: { origin: "", storage: "" }, storageOptions: [], locationStock: [], consultation: emptyConsultationState(), status: "Sessão terminada" });
   render();
 }
@@ -2183,6 +2188,15 @@ document.addEventListener("touchcancel", () => {
 window.addEventListener("resize", () => {
   if (isBatchKeypadPoppedOut() && !window.matchMedia("(min-width:851px)").matches) closeBatchKeypadPopout();
 });
+
+function refreshGoogleTokenAfterUserGesture() {
+  if (!googleTokenRefreshPending || !state.loggedIn || googleAuthRequest) return;
+  googleTokenRefreshPending = false;
+  void requestGoogleAccessToken("", true);
+}
+
+document.addEventListener("pointerdown", refreshGoogleTokenAfterUserGesture, { capture: true, passive: true });
+document.addEventListener("keydown", refreshGoogleTokenAfterUserGesture, { capture: true });
 
 document.addEventListener("click", async event => {
   const modeButton = event.target.closest("[data-mode]");
@@ -2964,11 +2978,8 @@ async function restoreSession() {
     } catch { clearStoredGoogleToken(); }
   }
   else if (token || storedScope) clearStoredGoogleToken();
-  const restored = await requestGoogleAccessToken("", true);
-  if (!restored && !state.loggedIn) {
-    state.checkingCredentials = false;
-    render();
-  }
+  state.checkingCredentials = false;
+  render();
 }
 
 writeAppHistory("home", true);
