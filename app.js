@@ -2094,12 +2094,10 @@ async function openBarcodeScanner(addHistory = true) {
                   if (added) {
                     playScannerConfirmationBeep();
                     if (navigator.vibrate) navigator.vibrate(45);
-                    if (state.mode === "lote") {
-                      showScannerSuccessOverlay(() => {
-                        if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
-                      });
-                      return;
-                    }
+                    showScannerSuccessOverlay(() => {
+                      if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
+                    });
+                    return;
                   }
                 }
                 barcodeScanTimer = window.setTimeout(scanFrame, 140);
