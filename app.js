@@ -13,6 +13,8 @@ const INVENTORY_DRAFT_KEY = "legoInventoryInventoryDraft";
 const SCANNER_CAMERA_KEY = "legoInventoryScannerCamera";
 const SCANNER_SUCCESS_DURATION_MS = 1800;
 const MOBILE_SWIPE_MODES = [null, "sheets", "update", "inventario"];
+// Temporary testing switch: set to true to require Google login before opening app screens again.
+const REQUIRE_GOOGLE_LOGIN_FOR_NAVIGATION = false;
 
 function emptyMovementForm(defaults = {}) {
   const storage = defaults.storage || "";
@@ -387,12 +389,13 @@ function headerMarkup() {
 }
 
 function optionCard(mode, title, description, image) {
-  return `<button data-mode="${mode}" ${state.loggedIn ? "" : "disabled"} class="option-card ${mode}"><span class="mode-option-image"><img src="public/options/${image}.png" alt=""></span><span><strong>${title}</strong><small>${description}</small></span><b>›</b></button>`;
+  const disabled = REQUIRE_GOOGLE_LOGIN_FOR_NAVIGATION && !state.loggedIn;
+  return `<button data-mode="${mode}"${disabled ? " disabled" : ""} class="option-card ${mode}"><span class="mode-option-image"><img src="public/options/${image}.png" alt=""></span><span><strong>${title}</strong><small>${description}</small></span><b>›</b></button>`;
 }
 
 function optionsMarkup() {
-  const loginTitle = state.loginError || (state.checkingCredentials ? "A verificar credenciais..." : "Inicia sessão para continuar");
-  const loginHelp = state.loginError ? "Toca aqui para tentar novamente." : state.checkingCredentials ? "A confirmar o acesso ao Google Sheets." : "As opções ficam disponíveis após o login com Google.";
+  const loginTitle = state.loginError || (state.checkingCredentials ? "A verificar credenciais..." : "Inicia sessão Google");
+  const loginHelp = state.loginError ? "Toca aqui para tentar novamente." : state.checkingCredentials ? "A confirmar o acesso ao Google Sheets." : "A sessão Google só é necessária para consultar ou guardar dados no inventário.";
   const login = state.loggedIn ? "" : `<button type="button" class="login-required ${state.loginError ? "has-error" : ""}" data-action="login">${icons.lock}<span><strong>${escapeHtml(loginTitle)}</strong><small>${loginHelp}</small></span></button>`;
   return `<section class="workspace sheets-page actions-page" id="inventario">
     <article class="sheets-explainer actions-explainer">
@@ -1171,6 +1174,13 @@ async function loadMovementStockRows() {
 }
 
 async function loadConsultationData() {
+  if (!state.loggedIn || !state.accessToken) {
+    state.consultation.loading = false;
+    state.consultation.loaded = false;
+    state.consultation.error = "Inicia sessão com Google para consultar as existências.";
+    render();
+    return;
+  }
   state.consultation.loading = true;
   state.consultation.error = "";
   render();
@@ -2229,7 +2239,7 @@ document.addEventListener("click", async event => {
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
   if (action === "show-consultations") {
-    if (!state.loggedIn || !state.accessToken) {
+    if (REQUIRE_GOOGLE_LOGIN_FOR_NAVIGATION && (!state.loggedIn || !state.accessToken)) {
       state.menuOpen = false;
       loginWithGoogle();
       return;
@@ -2246,7 +2256,7 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "show-inventory") {
-    if (!state.loggedIn || !state.accessToken) {
+    if (REQUIRE_GOOGLE_LOGIN_FOR_NAVIGATION && (!state.loggedIn || !state.accessToken)) {
       state.menuOpen = false;
       loginWithGoogle();
       return;
