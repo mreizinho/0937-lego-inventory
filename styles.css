@@ -484,4 +484,4 @@ html,body{height:100%;overflow:hidden}
 
 
 /* Floating filter bar joins the header without a dividing line. */
-.consultation-floating-filters{border-top:0;box-shadow:none}
+.consultation-floating-filters{border-top:0;box-shadow:0 8px 6px -6px rgba(30,36,40,.28)}
