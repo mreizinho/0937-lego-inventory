@@ -282,3 +282,19 @@ html,body{height:100%;overflow:hidden}
 .set-image-bricklink:active{transform:translateY(3px);box-shadow:0 2px 0 #d0d2d3}
 .set-image-bricklink:focus-visible{outline:3px solid #7893b2;outline-offset:3px}
 .set-image-dialog .set-image-viewport{margin-top:calc(max(12px,env(safe-area-inset-top)) + 52px)}
+
+
+/* BrickGEST desktop movement header alignment. */
+.masthead{background:#17324d}
+@media(min-width:851px){
+  .masthead{height:64px;gap:16px;align-items:flex-end}
+  .movement-header{justify-content:flex-start}
+  .movement-header-back{position:static;flex:0 0 42px;width:42px;height:42px;transform:none}
+  .movement-header h1{position:static;height:42px;display:flex;align-items:center;flex:none;font-size:20px}
+  .movement-header .desktop-tabs{position:static;height:42px;margin-left:auto;flex:none}
+  .masthead .desktop-tabs{height:42px}
+}
+@media(min-width:851px) and (max-width:1050px){
+  .masthead{padding-left:16px;padding-right:16px;gap:10px}
+  .movement-header h1{font-size:16px}
+}
