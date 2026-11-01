@@ -378,8 +378,8 @@ function lotMobileHeaderMarkup() {
 }
 
 function headerMarkup() {
-  if (state.mode === "entrada" || state.mode === "saida" || isBatchMode()) {
-    const title = isBatchMode() ? batchModeLabel() : state.mode === "entrada" ? "ENTRADA" : "SAÍDA";
+  if (state.mode === "entrada" || state.mode === "saida" || state.mode === "consulta" || isBatchMode()) {
+    const title = isBatchMode() ? batchModeLabel() : state.mode === "consulta" ? "CONSULTAS" : state.mode === "entrada" ? "ENTRADA" : "SAÍDA";
     return `<header class="masthead movement-header">
       <button class="movement-header-back" data-action="home" aria-label="Ir para o Início">${icons.back}</button>
       <h1>${title}</h1>
