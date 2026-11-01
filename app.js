@@ -208,7 +208,7 @@ function batchDraftKey() {
 }
 
 function batchModeLabel() {
-  return isInventoryMode() ? "INVENTÁRIO" : "LOTE";
+  return isInventoryMode() ? "INVENTÁRIO" : "MOVIMENTOS";
 }
 
 function persistBatchDraft() {
@@ -597,7 +597,7 @@ function consultationMarkup() {
 
 function batchTypeMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel">
-    <div class="batch-heading"><p>LOTE</p><h2>Que movimento queres preparar?</h2><span>As condições comuns serão pedidas apenas quando concluíres a picagem.</span></div>
+    <div class="batch-heading"><p>MOVIMENTOS</p><h2>Que movimento queres preparar?</h2><span>As condições comuns serão pedidas apenas quando concluíres a leitura.</span></div>
     <div class="batch-type-options">
       <button type="button" class="option-card batch-type entrada" data-action="batch-type" data-batch-type="entrada"><span class="mode-option-image"><img src="public/options/entrada.png" alt=""></span><span><strong>ENTRADA</strong><small>Registar todos os sets recebidos</small></span><b>›</b></button>
       <button type="button" class="option-card batch-type saida" data-action="batch-type" data-batch-type="saida"><span class="mode-option-image"><img src="public/options/saida.png" alt=""></span><span><strong>SAÍDA</strong><small>Retirar todos os sets picados</small></span><b>›</b></button>
@@ -632,7 +632,7 @@ function batchResumePromptMarkup() {
 }
 
 function batchMiniListMarkup() {
-  if (!state.batch.items.length) return `<p class="batch-empty">Ainda não foi picado nenhum conjunto.</p>`;
+  if (!state.batch.items.length) return `<p class="batch-empty">Ainda não foi lido nenhum conjunto.</p>`;
   return `<div class="batch-mini-list">${state.batch.items.slice(-4).reverse().map(item => `<div><span><b>${escapeHtml(item.code)}</b><small>${escapeHtml(item.name)}</small></span><strong>${item.qty} un.</strong></div>`).join("")}</div>`;
 }
 
@@ -651,7 +651,7 @@ function batchScanMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel${keypadPoppedOut ? " batch-keypad-detached" : ""}">
     ${keypadSection}
     <div class="batch-counter"><strong>${units}</strong><span>${units === 1 ? "unidade" : "unidades"}</span><i></i><strong>${references}</strong><span>${references === 1 ? "referência" : "referências"}</span></div>
-    <p class="batch-mini-title">Últimas picagens</p>
+    <p class="batch-mini-title">Últimas leituras</p>
     ${batchMiniListMarkup()}
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="secondary" data-action="batch-review"${references ? "" : " disabled"}>PAUSAR / REVER</button><button type="button" class="primary" data-action="batch-conditions"${references ? "" : " disabled"}>CONCLUIR</button></div>
   </section></section>`;
@@ -845,7 +845,15 @@ function render() {
   if (isBatchKeypadPoppedOut() && (!isBatchMode() || state.batch.phase !== "scan")) closeBatchKeypadPopout(false);
   const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.mode === "consulta" ? consultationMarkup() : isBatchMode() ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
   const notice = state.movementNotice ? `<div class="app-toast ${state.movementNotice.type}" role="status">${escapeHtml(state.movementNotice.message)}</div>` : "";
-  document.querySelector("#app").innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
+  const app = document.querySelector("#app");
+  if (state.scannerOpen && app.querySelector(".camera-scanner")) {
+    // Mantém o vídeo e o temporizador de sucesso durante leituras consecutivas.
+    app.querySelector(".app-content").innerHTML = content;
+    app.querySelector(".app-toast")?.remove();
+    if (notice) app.insertAdjacentHTML("beforeend", notice);
+  } else {
+    app.innerHTML = `${headerMarkup()}<div class="app-content">${content}</div>${state.scannerOpen ? scannerMarkup() : ""}${notice}`;
+  }
   const appContent = document.querySelector(".app-content");
   appContent?.addEventListener("scroll", updateLotMobileHeaderSummary, { passive: true });
   updateLotMobileHeaderSummary();
@@ -1228,7 +1236,22 @@ async function getLocationStock(setNumber) {
   return locationStockFromRows(await loadMovementStockRows(), setNumber);
 }
 
-async function addCodeToBatch(rawCode, fromScanner = false) {
+let batchReadQueue = Promise.resolve();
+
+function addCodeToBatch(rawCode, fromScanner = false) {
+  const code = String(rawCode || "").replace(/\D/g, "");
+  const batch = state.batch;
+  // Regista a leitura e liberta já o campo para o EAN seguinte.
+  state.query = "";
+  const display = document.querySelector("#entry-code");
+  if (display) display.value = "";
+  const pending = batchReadQueue.then(() => state.batch === batch ? processBatchCode(code, fromScanner) : false);
+  batchReadQueue = pending.catch(() => {});
+  return pending;
+}
+
+async function processBatchCode(rawCode, fromScanner = false) {
+  const batch = state.batch;
   const code = String(rawCode || "").replace(/\D/g, "");
   if (!code) return false;
   const found = findSet(code);
@@ -1242,6 +1265,7 @@ async function addCodeToBatch(rawCode, fromScanner = false) {
   if (state.batch.movementType === "saida") {
     try {
       locations = await getLocationStock(found.code);
+      if (state.batch !== batch) return false;
     } catch (error) {
       showMovementNotice(error.message === "AUTH_EXPIRED" ? "A sessão Google expirou. Inicia sessão novamente." : "Não foi possível verificar o stock deste conjunto.", "error");
       if (!fromScanner) render();
@@ -1264,7 +1288,6 @@ async function addCodeToBatch(rawCode, fromScanner = false) {
   const previousIndex = state.batch.items.indexOf(item);
   if (previousIndex >= 0) state.batch.items.splice(previousIndex, 1);
   state.batch.items.push(item);
-  state.query = "";
   persistBatchDraft();
   showMovementNotice(`${found.code} adicionado · ${item.qty} ${item.qty === 1 ? "unidade" : "unidades"}.`, "success");
   if (!fromScanner) render();
@@ -2222,6 +2245,8 @@ document.addEventListener("click", async event => {
       if (state.batch.items.length) {
         state.batch.resumePhase = state.batch.phase;
         state.batch.phase = "resume";
+      } else if (!isInventoryMode()) {
+        state.batch = emptyBatchState(state.userEmail);
       }
     }
     writeAppHistory("mode");
@@ -2872,6 +2897,7 @@ document.addEventListener("keydown", async event => {
     event.preventDefault();
     if (isBatchMode()) await addCodeToBatch(state.query);
     else lookup();
+    return;
   }
   const keypadActive = ((state.mode === "entrada" || state.mode === "saida") && !state.selected || isBatchMode() && state.batch.phase === "scan") && !state.scannerOpen;
   if (!keypadActive || event.ctrlKey || event.metaKey || event.altKey) return;
