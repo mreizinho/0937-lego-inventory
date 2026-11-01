@@ -481,3 +481,7 @@ html,body{height:100%;overflow:hidden}
 .movement-form-actions button,.consultation-actions button,.inventory-name-copy .batch-actions button{font-size:var(--action-button-font-size);font-weight:800;letter-spacing:1px;line-height:1.25;height:auto;min-height:58px;padding:14px 12px;white-space:normal}
 @media(min-width:851px){.consultation-floating-filters>summary{padding-left:var(--filter-content-left,34px);padding-right:var(--filter-content-right,34px)}
 }
+
+
+/* Floating filter bar joins the header without a dividing line. */
+.consultation-floating-filters{border-top:0}
