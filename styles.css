@@ -300,14 +300,14 @@ html,body{height:100%;overflow:hidden}
 }
 
 
-/* BrickGEST icon menu and hover behavior. */
-:root{--menu-surface:#2e475f}
+/* BrickGEST icon menu and hover behavior, with the original C0937 grey palette. */
+:root{--menu-surface:#555657}
 .menu-popover{background:var(--menu-surface)}
 .menu-simple-item{display:grid;grid-template-columns:24px minmax(0,1fr);column-gap:14px;padding:10px 20px}
-.menu-simple-item:hover,.menu-simple-item:focus-visible{background:#3c607f;color:#fff;outline:0}
-.menu-simple-item.active,.menu-simple-item.active:hover,.menu-simple-item.active:focus-visible{background:#fff;color:#17324d}
-.menu-separator{background:#ffffff30}
+.menu-simple-item:hover,.menu-simple-item:focus-visible{background:#747677;color:#fff;outline:0}
+.menu-simple-item.active,.menu-simple-item.active:hover,.menu-simple-item.active:focus-visible{background:#fff;color:#444647}
+.menu-separator{background:#747677}
 .menu-material-icon{width:24px;height:24px;font-size:24px;line-height:1;overflow:hidden}
 .menu-google-icon{display:block;width:20px;height:20px;justify-self:center;align-self:center;background:currentColor;-webkit-mask:url("public/options/google.svg") center/contain no-repeat;mask:url("public/options/google.svg") center/contain no-repeat}
 .hamburger-button[aria-expanded="true"]{background:var(--menu-surface);color:#fff}
-.hamburger-button[aria-expanded="true"][data-close-hover-ready="true"]:hover,.hamburger-button[aria-expanded="true"]:focus-visible{background:#3c607f;color:#fff;box-shadow:inset 0 0 0 6px var(--menu-surface)}
+.hamburger-button[aria-expanded="true"][data-close-hover-ready="true"]:hover,.hamburger-button[aria-expanded="true"]:focus-visible{background:#747677;color:#fff;box-shadow:inset 0 0 0 6px var(--menu-surface)}
