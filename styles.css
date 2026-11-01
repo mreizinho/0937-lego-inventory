@@ -285,9 +285,9 @@ html,body{height:100%;overflow:hidden}
 
 
 /* BrickGEST desktop movement header alignment. */
-.masthead{background:#17324d}
+.masthead{background:#444647}
 @media(min-width:851px){
-  .masthead{height:64px;gap:16px;align-items:flex-end}
+  .masthead{gap:16px;align-items:flex-end}
   .movement-header{justify-content:flex-start}
   .movement-header-back{position:static;flex:0 0 42px;width:42px;height:42px;transform:none}
   .movement-header h1{position:static;height:42px;display:flex;align-items:center;flex:none;font-size:20px}
