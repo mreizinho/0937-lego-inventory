@@ -373,10 +373,11 @@ function lotMobileHeaderMarkup() {
 }
 
 function headerMarkup() {
-  if (state.mode === "entrada" || state.mode === "saida") {
+  if (state.mode === "entrada" || state.mode === "saida" || isBatchMode()) {
+    const title = isBatchMode() ? batchModeLabel() : state.mode === "entrada" ? "ENTRADA" : "SAÍDA";
     return `<header class="masthead movement-header">
-      <button class="movement-header-back" data-action="back" aria-label="Voltar às opções">${icons.back}</button>
-      <h1>${state.mode === "entrada" ? "ENTRADA" : "SAÍDA"}</h1>
+      <button class="movement-header-back" data-action="home" aria-label="Ir para o Início">${icons.back}</button>
+      <h1>${title}</h1>
       ${desktopTabsMarkup()}
       <div class="header-menu movement-header-menu">
         <button class="hamburger-button" data-action="toggle-menu" aria-expanded="${state.menuOpen}" aria-controls="movement-menu" aria-label="${state.menuOpen ? "Fechar" : "Abrir"} menu">${state.menuOpen ? icons.close : icons.menu}</button>
@@ -384,7 +385,6 @@ function headerMarkup() {
       </div>
     </header>`;
   }
-  if (isBatchMode()) return `${mainHeaderMarkup("lot-desktop-header", "lot-desktop-menu")}${lotMobileHeaderMarkup()}`;
   return mainHeaderMarkup();
 }
 
@@ -797,11 +797,15 @@ function batchAllocationMarkup(item) {
 }
 
 function batchReviewMarkup() {
+  // Rascunhos antigos podem não ter guardado a imagem do catálogo.
+  for (const item of state.batch.items) {
+    if (!item.imageUrl) item.imageUrl = findSet(String(item.code))?.imageUrl || "";
+  }
   const label = isInventoryMode() ? "inventário" : "lote";
   return `<section class="workspace batch-page"><section class="batch-panel batch-review-panel">
-    <div class="batch-heading"><p>PICAGEM EM PAUSA</p><h2>Rever ${label}</h2><span>${state.batch.items.length} ${state.batch.items.length === 1 ? "referência" : "referências"} · ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"}</span></div>
+    <div class="batch-heading"><p>LEITURA EM PAUSA</p><h2>Rever ${label}</h2><span>${state.batch.items.length} ${state.batch.items.length === 1 ? "referência" : "referências"} · ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"}</span></div>
     <div class="batch-review-list">${[...state.batch.items].reverse().map(item => `<article class="batch-item">
-      <div class="batch-item-main"><span class="batch-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span><span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div><button type="button" class="batch-remove-item" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Remover ${escapeHtml(item.code)}">×</button></div>
+      <div class="batch-item-main"><button type="button" class="batch-remove-item" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Remover ${escapeHtml(item.code)}">×</button><span class="batch-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span><span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div></div>
       ${batchAllocationMarkup(item)}
     </article>`).join("")}</div>
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-resume">RETOMAR</button><button type="button" class="secondary batch-delete-action" data-action="batch-cancel">APAGAR</button><button type="button" class="primary" data-action="batch-conditions">CONCLUIR</button></div>
