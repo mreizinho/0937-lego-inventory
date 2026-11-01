@@ -273,3 +273,12 @@ html,body{height:100%;overflow:hidden}
 .set-image-close{position:absolute;top:max(12px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));width:44px;height:44px;display:grid;place-items:center;padding:0;z-index:1;border:0;border-radius:50%;background:#19334a;color:#fff;cursor:pointer}
 .set-image-close:focus-visible{outline:3px solid #7893b2;outline-offset:3px}
 .set-image-close svg{display:block;width:24px;height:24px}
+
+
+.set-image-bricklink{position:absolute;top:max(12px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));height:44px;display:flex;align-items:center;gap:10px;z-index:1;padding:0 14px;border:0;border-radius:14px;background:#29b9e2;color:#fff;text-decoration:none;box-shadow:0 5px 0 #d0d2d3;cursor:pointer}
+.set-image-bricklink>img{display:block;width:100.8px;max-width:calc(100vw - 160px);height:auto;max-height:24px;filter:brightness(0) invert(1)}
+.set-image-bricklink>svg{width:24px;height:24px;flex:none}
+.set-image-bricklink:hover{background:#20add5}
+.set-image-bricklink:active{transform:translateY(3px);box-shadow:0 2px 0 #d0d2d3}
+.set-image-bricklink:focus-visible{outline:3px solid #7893b2;outline-offset:3px}
+.set-image-dialog .set-image-viewport{margin-top:calc(max(12px,env(safe-area-inset-top)) + 52px)}
