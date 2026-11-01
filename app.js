@@ -805,7 +805,7 @@ function batchReviewMarkup() {
   return `<section class="workspace batch-page"><section class="batch-panel batch-review-panel">
     <div class="batch-heading"><p>LEITURA EM PAUSA</p><h2>Rever ${label}</h2><span>${state.batch.items.length} ${state.batch.items.length === 1 ? "referência" : "referências"} · ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"}</span></div>
     <div class="batch-review-list">${[...state.batch.items].reverse().map(item => `<article class="batch-item">
-      <div class="batch-item-main"><button type="button" class="batch-remove-item" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Remover ${escapeHtml(item.code)}">×</button><span class="batch-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span><span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div></div>
+      <div class="batch-item-main"><button type="button" class="batch-remove-item" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Remover ${escapeHtml(item.code)}">×</button>${item.imageUrl ? `<button type="button" class="batch-item-image batch-image-button" data-action="batch-image" data-batch-code="${escapeHtml(item.code)}" aria-label="Ver imagem de ${escapeHtml(item.code)}"><img src="${escapeHtml(item.imageUrl)}" alt=""></button>` : `<span class="batch-item-image">#</span>`}<span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div></div>
       ${batchAllocationMarkup(item)}
     </article>`).join("")}</div>
     <div class="batch-actions"><button type="button" class="secondary" data-action="batch-resume">RETOMAR</button><button type="button" class="secondary batch-delete-action" data-action="batch-cancel">APAGAR</button><button type="button" class="primary" data-action="batch-conditions">CONCLUIR</button></div>
@@ -1143,6 +1143,93 @@ async function runBricksetImport() {
   }
   await loadCatalog(state.accessToken);
 }
+
+function openBatchImage(item) {
+  if (!item?.imageUrl) return;
+  const previousFocus = document.activeElement;
+  const dialog = document.createElement("dialog");
+  dialog.className = "set-image-dialog";
+  dialog.setAttribute("aria-label", `Imagem ${item.code} · ${item.name}`);
+  dialog.innerHTML = `<div class="set-image-viewport"><img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(`${item.code} · ${item.name}`)}" draggable="false"></div><p class="set-image-caption">${escapeHtml(item.code)} - ${escapeHtml(item.name)}</p><form method="dialog"><button class="set-image-close" aria-label="Fechar imagem" autofocus><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6L18 18M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button></form>`;
+  const viewport = dialog.querySelector(".set-image-viewport");
+  const image = viewport.querySelector("img");
+  let zoom = 1, baseWidth = 0, baseHeight = 0, drag = null, pinch = null;
+  const pointers = new Map();
+  const applySize = () => {
+    image.style.width = `${baseWidth * zoom}px`;
+    image.style.height = `${baseHeight * zoom}px`;
+  };
+  const centreImage = () => {
+    if (!image.naturalWidth || !image.naturalHeight) return;
+    const fit = Math.min(viewport.clientWidth / image.naturalWidth, viewport.clientHeight / image.naturalHeight, 1);
+    baseWidth = image.naturalWidth * fit;
+    baseHeight = image.naturalHeight * fit;
+    applySize();
+    viewport.scrollLeft = Math.max(0, (viewport.scrollWidth - viewport.clientWidth) / 2);
+    viewport.scrollTop = Math.max(0, (viewport.scrollHeight - viewport.clientHeight) / 2);
+  };
+  const setZoom = (value, point) => {
+    if (!baseWidth || !baseHeight) return;
+    const before = image.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (point.x - before.left) / before.width));
+    const y = Math.max(0, Math.min(1, (point.y - before.top) / before.height));
+    zoom = Math.max(1, Math.min(6, value));
+    applySize();
+    const after = image.getBoundingClientRect();
+    viewport.scrollLeft += after.left + x * after.width - point.x;
+    viewport.scrollTop += after.top + y * after.height - point.y;
+  };
+  image.addEventListener("load", centreImage);
+  window.addEventListener("resize", centreImage);
+  viewport.addEventListener("wheel", event => {
+    event.preventDefault();
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? viewport.clientHeight : 1);
+    setZoom(zoom * Math.exp(-Math.max(-300, Math.min(300, delta)) * .002), {x:event.clientX, y:event.clientY});
+  }, {passive:false});
+  const resetGesture = () => {
+    pinch = null; drag = null;
+    const points = [...pointers.values()];
+    if (points.length >= 2) {
+      pinch = {distance:Math.hypot(points[1].x-points[0].x, points[1].y-points[0].y), zoom};
+    } else if (points.length === 1) {
+      drag = {...points[0], left:viewport.scrollLeft, top:viewport.scrollTop};
+    }
+    viewport.classList.toggle("is-dragging", pointers.size > 0);
+  };
+  viewport.addEventListener("pointerdown", event => {
+    if (event.button !== 0 || pointers.size >= 2) return;
+    pointers.set(event.pointerId, {x:event.clientX,y:event.clientY});
+    viewport.setPointerCapture(event.pointerId);
+    resetGesture();
+  });
+  viewport.addEventListener("pointermove", event => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, {x:event.clientX,y:event.clientY});
+    const points = [...pointers.values()];
+    if (pinch && points.length === 2 && pinch.distance > 0) {
+      const distance = Math.hypot(points[1].x-points[0].x, points[1].y-points[0].y);
+      setZoom(pinch.zoom * distance / pinch.distance, {x:(points[0].x+points[1].x)/2,y:(points[0].y+points[1].y)/2});
+    } else if (drag) {
+      viewport.scrollLeft = drag.left - (event.clientX - drag.x);
+      viewport.scrollTop = drag.top - (event.clientY - drag.y);
+    }
+  });
+  const finishDrag = event => {
+    if (pointers.delete(event.pointerId)) resetGesture();
+  };
+  viewport.addEventListener("pointerup", finishDrag);
+  viewport.addEventListener("pointercancel", finishDrag);
+  viewport.addEventListener("lostpointercapture", finishDrag);
+  dialog.addEventListener("close", () => {
+    window.removeEventListener("resize", centreImage);
+    dialog.remove();
+    if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+  }, { once: true });
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  if (image.complete) centreImage();
+}
+
 
 function createMovementId() {
   if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();
@@ -2267,6 +2354,10 @@ document.addEventListener("click", async event => {
   }
   const action = event.target.closest("[data-action]")?.dataset.action;
   if (!action) return;
+  if (action === "batch-image") {
+    openBatchImage(batchItemByCode(event.target.closest("[data-batch-code]")?.dataset.batchCode));
+    return;
+  }
   if (action === "show-consultations") {
     if (REQUIRE_GOOGLE_LOGIN_FOR_NAVIGATION && (!state.loggedIn || !state.accessToken)) {
       state.menuOpen = false;
