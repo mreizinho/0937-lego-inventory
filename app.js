@@ -26,7 +26,7 @@ function emptyConsultationFilters() {
 }
 
 function emptyConsultationState() {
-  return { filters: emptyConsultationFilters(), appliedFilters: emptyConsultationFilters(), rows: [], items: [], loading: false, loaded: false, error: "" };
+  return { filters: emptyConsultationFilters(), appliedFilters: emptyConsultationFilters(), filtersOpen: true, rows: [], items: [], loading: false, loaded: false, error: "" };
 }
 
 function emptyBatchState(userEmail = "", inventory = false) {
@@ -547,28 +547,35 @@ function genericModeMarkup() {
     <div class="divider"><span>ou</span></div><button class="scanner-button" data-action="scanner"><span class="scan-corners">▦</span><strong>Ler com scanner</strong><small>O leitor envia o EAN automaticamente</small></button><p class="scanner-tip"><b>i</b> Leitores USB/Bluetooth funcionam como teclado: basta apontar e ler.</p>${result}</section></section>`;
 }
 
+function consultationClearButton(key, label, value) {
+  return `<button type="button" class="consultation-field-clear" data-action="consultation-field-clear" data-clear-filter="${key}" aria-label="Limpar ${escapeHtml(label)}"${String(value ?? "") ? "" : " hidden"}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>`;
+}
+
+
 function consultationFilterMarkup() {
-  const filters = state.consultation.filters;
+  const filterState = state.consultation;
+  const items = state.consultation.items;
+  const filters = filterState.filters;
   const option = (value, label) => `<option value="${value}"${filters.valueOperator === value ? " selected" : ""}>${label}</option>`;
-  const filterField = (key, label, placeholder) => `<label><span>${label}</span><input type="search" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" placeholder="${escapeHtml(placeholder)}" autocomplete="off"></label>`;
+  const filterField = (key, label, placeholder) => `<label><span>${label}</span><span class="consultation-input-shell"><input type="search" enterkeyhint="search"${key === "set" ? ' inputmode="numeric"' : ""} data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" placeholder="${escapeHtml(placeholder)}" autocomplete="off">${consultationClearButton(key, label, filters[key])}</span></label>`;
   const distinctOptions = values => [...new Set(values.map(value => String(value || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right, "pt", { sensitivity: "base", numeric: true }));
   const selectFilter = (key, label, emptyLabel, values) => `<label><span>${label}</span><span class="select-control consultation-select-control"><select data-consultation-filter="${key}" aria-label="Filtrar por ${label.toLocaleLowerCase("pt-PT")}"><option value="">${emptyLabel}</option>${distinctOptions(values).map(value => `<option value="${escapeHtml(value)}"${filters[key] === value ? " selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select><span class="select-arrow" aria-hidden="true">▾</span></span></label>`;
-  const valueControl = (key, label, placeholder, hidden = false) => `<span class="qty-control consultation-value-stepper" data-consultation-value-control="${key}"${hidden ? " hidden" : ""}><input type="number" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" min="0" step="1" placeholder="${placeholder}" aria-label="${label}"><span class="qty-stepper"><button type="button" data-action="consultation-value-increase" data-consultation-value="${key}" aria-label="Aumentar ${label.toLocaleLowerCase("pt-PT")}">▴</button><button type="button" data-action="consultation-value-decrease" data-consultation-value="${key}" aria-label="Diminuir ${label.toLocaleLowerCase("pt-PT")}">▾</button></span></span>`;
-  const origins = state.consultation.items.flatMap(item => item.origins);
-  const storages = state.consultation.items.flatMap(item => item.locations.map(location => location.storage));
-  const activeFilters = consultationFilterCount(filters);
-  return `<details class="consultation-filters" open>
-    <summary><span>Filtros</span><strong id="consultation-filter-count">${activeFilters} ${activeFilters === 1 ? "ativo" : "ativos"}</strong></summary>
-    <div class="consultation-filter-grid">
+  const valueControl = (key, label, placeholder, hidden = false) => `<span class="qty-control consultation-value-stepper" data-consultation-value-control="${key}"${hidden ? " hidden" : ""}><input type="number" enterkeyhint="search" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" min="0" step="1" placeholder="${placeholder}" aria-label="${label}"><span class="qty-stepper"><button type="button" data-action="consultation-value-increase" data-consultation-value="${key}" aria-label="Aumentar ${label.toLocaleLowerCase("pt-PT")}">▴</button><button type="button" data-action="consultation-value-decrease" data-consultation-value="${key}" aria-label="Diminuir ${label.toLocaleLowerCase("pt-PT")}">▾</button></span></span>`;
+  const origins = items.flatMap(item => item.origins);
+  const storages = items.flatMap(item => item.locations.map(location => location.storage));
+  const activeFilters = consultationFilterCount(filterState.appliedFilters);
+  return `<details class="consultation-filters"${filterState.filtersOpen === false ? "" : " open"}>
+    <summary><span>FILTROS</span><button type="button" id="consultation-summary-clear" class="consultation-summary-clear" data-action="consultation-clear" aria-label="Limpar filtros" title="Limpar filtros"${activeFilters > 0 ? "" : " hidden"}><span class="material-symbols-outlined" aria-hidden="true">filter_alt_off</span></button><strong id="consultation-filter-count" class="${activeFilters > 0 ? "multiple-active" : ""}">${activeFilters} ${activeFilters === 1 ? "ATIVO" : "ATIVOS"}</strong><button type="button" class="consultation-summary-apply" data-action="consultation-apply" aria-label="Aplicar filtros" title="Aplicar filtros"><img src="public/options/consultar.svg" alt="" width="24" height="24"></button></summary>
+    <form class="consultation-filter-grid" data-consultation-form>
+      <button type="submit" hidden aria-hidden="true" tabindex="-1">Aplicar filtros</button>
       ${filterField("set", "Set", "Ex.: 10255")}
       ${filterField("name", "Nome", "Ex.: Assembly")}
       ${filterField("theme", "Tema", "Ex.: Icons")}
+      ${selectFilter("storage", "Local", "Todos", storages)}
       ${selectFilter("origin", "Origem", "Todas", origins)}
       ${filterField("obs", "Obs", "Texto nas observações")}
-      ${selectFilter("storage", "Local", "Todos", storages)}
-      <div class="consultation-value-filter"><span class="consultation-field-label">Valor</span><span class="consultation-value-controls"><span class="select-control consultation-select-control"><select data-consultation-filter="valueOperator" aria-label="Comparação do valor">${option("less", "Menor que")}${option("greater", "Maior que")}${option("between", "Entre")}</select><span class="select-arrow" aria-hidden="true">▾</span></span>${valueControl("valueMin", "valor em euros", filters.valueOperator === "between" ? "Mínimo" : "Valor")}${valueControl("valueMax", "valor máximo em euros", "Máximo", filters.valueOperator !== "between")}</span></div>
-      <div class="consultation-actions"><button type="button" class="secondary" data-action="consultation-clear">LIMPAR</button><button type="button" class="primary" data-action="consultation-apply">CONSULTAR</button></div>
-    </div>
+      <div class="consultation-value-filter"><span class="consultation-field-label">PVR</span><span class="consultation-value-controls"><span class="select-control consultation-select-control"><select data-consultation-filter="valueOperator" aria-label="Comparação do PVR">${option("less", "Menor que")}${option("greater", "Maior que")}${option("between", "Entre")}</select><span class="select-arrow" aria-hidden="true">▾</span></span>${valueControl("valueMin", "valor em euros", filters.valueOperator === "between" ? "Mínimo" : "Valor")}${valueControl("valueMax", "valor máximo em euros", "Máximo", filters.valueOperator !== "between")}</span></div>
+    </form>
     <p class="consultation-filter-note">Origem e Obs pesquisam o histórico de movimentos do set.</p>
   </details>`;
 }
@@ -577,16 +584,16 @@ function consultationResultMarkup(item) {
   const locations = item.locations.map(location => `<span><b>${escapeHtml(location.storage)}</b><small>${location.stock.toLocaleString("pt-PT")} un.</small></span>`).join("");
   const value = Number.isFinite(item.value) ? `${formatMoneyValue(item.value)} / un.` : "Valor não disponível";
   return `<article class="consultation-item">
-    <span class="consultation-item-image">${item.imageUrl ? `<img src="${escapeHtml(item.imageUrl)}" alt="">` : "#"}</span>
+    ${item.imageUrl ? `<button type="button" class="consultation-item-image consultation-image-button" data-action="consultation-image" data-set-code="${escapeHtml(item.code)}" aria-label="Ver imagem de ${escapeHtml(item.code)}"><img src="${escapeHtml(item.imageUrl)}" alt=""></button>` : `<span class="consultation-item-image">#</span>`}
     <span class="consultation-item-copy"><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme)} · ${item.year || "—"}</small></span>
     <span class="consultation-locations">${locations}</span>
-    <span class="consultation-item-summary"><b>${item.stock.toLocaleString("pt-PT")} un.</b><small>${escapeHtml(value)}</small></span>
+    <span class="consultation-item-summary"><b>Total: ${item.stock.toLocaleString("pt-PT")} un.</b><small class="consultation-pvr">PVR ${Number.isFinite(item.value) ? escapeHtml(formatMoneyValue(item.value)) : "—"}</small></span>
   </article>`;
 }
 
 function consultationMarkup() {
   const consultation = state.consultation;
-  const heading = `<div class="batch-heading"><p>CONSULTAS</p><h2>Consultar inventário</h2><span>Pesquisa as existências atuais e as respetivas localizações.</span></div>`;
+  const heading = `<div class="batch-heading"><p class="mobile-section-label">CONSULTAS</p><h2>Consultar inventário</h2><span>Pesquisa as existências atuais e as respetivas localizações.</span></div>`;
   if (consultation.error) return `<section class="workspace consultation-page"><section class="batch-panel consultation-panel">${heading}<div class="consultation-error"><p>${escapeHtml(consultation.error)}</p><button type="button" data-action="consultation-retry">TENTAR NOVAMENTE</button></div></section></section>`;
   if (consultation.loading || !consultation.loaded) return `<section class="workspace consultation-page"><section class="batch-panel consultation-panel">${heading}<p class="consultation-message">A carregar movimentos…</p></section></section>`;
   const results = consultationResults();
@@ -2430,6 +2437,19 @@ document.addEventListener("click", async event => {
     if (counter) counter.textContent = `${count} ${count === 1 ? "ativo" : "ativos"}`;
     return;
   }
+  if (action === "consultation-image") {
+    const item = state.consultation.items.find(entry => String(entry.code) === String(event.target.closest("[data-set-code]")?.dataset.setCode));
+    openBatchImage(item);
+    return;
+  }
+  if (action === "consultation-field-clear") {
+    const key = event.target.closest("[data-clear-filter]")?.dataset.clearFilter;
+    if (!key || !(key in state.consultation.filters)) return;
+    state.consultation.filters[key] = "";
+    render();
+    document.querySelector(`[data-consultation-filter="${key}"]`)?.focus();
+    return;
+  }
   if (action === "consultation-clear") {
     state.consultation.filters = emptyConsultationFilters();
     state.consultation.appliedFilters = emptyConsultationFilters();
@@ -2452,6 +2472,7 @@ document.addEventListener("click", async event => {
       return;
     }
     state.consultation.appliedFilters = { ...filters };
+    state.consultation.filtersOpen = false;
     render();
     return;
   }
