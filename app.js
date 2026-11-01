@@ -873,6 +873,7 @@ function render() {
   const appContent = document.querySelector(".app-content");
   appContent?.addEventListener("scroll", updateLotMobileHeaderSummary, { passive: true });
   updateLotMobileHeaderSummary();
+  setupFloatingConsultationFilters();
   renderBatchKeypadWindow();
 }
 
@@ -885,6 +886,64 @@ function updateLotMobileHeaderSummary() {
   const label = batchModeLabel();
   title.textContent = summaryHasScrolledAway ? `${label} (${state.batch.items.length} Refs. - ${batchUnitCount()} un.)` : label;
 }
+
+let consultationFiltersObserver = null;
+let consultationFiltersResizeObserver = null;
+
+function alignFloatingConsultationFilters() {
+  const panel=document.querySelector('.app-content .consultation-panel');
+  const filters=panel?.querySelector('.consultation-filters');
+  if(!panel||!filters)return;
+  const content=document.querySelector(".app-content");
+  if(filters.classList.contains("consultation-floating-filters")&&content){filters.style.top=`${content.getBoundingClientRect().top}px`;filters.style.maxHeight=`${content.clientHeight}px`;}
+  if(window.innerWidth<=850){filters.style.removeProperty("--filter-content-left");filters.style.removeProperty("--filter-content-right");return;}
+  const bounds=panel.getBoundingClientRect(),padding=window.getComputedStyle(panel);
+  filters.style.setProperty('--filter-content-left',`${bounds.left+(parseFloat(padding.paddingLeft)||0)}px`);
+  filters.style.setProperty('--filter-content-right',`${Math.max(0,window.innerWidth-bounds.right)+(parseFloat(padding.paddingRight)||0)}px`);
+}
+window.addEventListener('resize',alignFloatingConsultationFilters);
+
+function setupFloatingConsultationFilters() {
+  consultationFiltersObserver?.disconnect();
+  consultationFiltersResizeObserver?.disconnect();
+  if (state.mode !== 'consulta') return;
+  const content = document.querySelector('.app-content');
+  const filters = content?.querySelector('.consultation-filters');
+  const summary = filters?.querySelector('summary');
+  if (!summary) return;
+  const anchor = document.createElement('div');
+  anchor.className = 'consultation-filters-anchor';
+  filters.before(anchor);
+  anchor.append(filters);
+  const marker = document.createElement('span');
+  marker.className = 'consultation-filters-marker';
+  marker.style.top = 'auto';
+  marker.style.bottom = '0';
+  marker.style.height = '1px';
+  anchor.prepend(marker);
+  let floating = false;
+  consultationFiltersObserver = new IntersectionObserver(entries => {
+    const entry = entries[0];
+    const shouldFloat = !entry.isIntersecting && entry.boundingClientRect.bottom <= entry.rootBounds.top;
+    if (shouldFloat === floating) return;
+    floating = shouldFloat;
+    if (floating) {
+      anchor.style.height = `${anchor.getBoundingClientRect().height}px`;
+      filters.open = false;
+      filters.style.top = `${content.getBoundingClientRect().top}px`;
+      filters.style.maxHeight = `${content.clientHeight}px`;
+    } else {
+      anchor.style.height = '';
+      filters.style.top = '';
+      filters.style.maxHeight = '';
+    }
+    filters.classList.toggle('consultation-floating-filters', floating);
+  }, { root: content, threshold: 0 });
+  consultationFiltersObserver.observe(marker);
+  alignFloatingConsultationFilters();
+  if(window.ResizeObserver){consultationFiltersResizeObserver=new window.ResizeObserver(alignFloatingConsultationFilters);consultationFiltersResizeObserver.observe(content);const header=document.querySelector(".masthead");if(header)consultationFiltersResizeObserver.observe(header);}
+}
+
 
 function waitForMobileSwipeTransition(element) {
   return new Promise(resolve => {
