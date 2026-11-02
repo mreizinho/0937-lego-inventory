@@ -490,3 +490,7 @@ html,body{height:100%;overflow:hidden}
 /* Batch scanner stock warning. */
 .camera-scan-warning>span{color:#b77500;border-color:#e8a900;background:#fff7dc}
 .camera-scan-warning>span svg{display:block;width:62px;height:62px;transform:translateY(-4px)}
+
+
+/* Align the Comunidade 0937 logo with the forum header. */
+@media(min-width:851px){.masthead:has(.brand){padding-left:80px}}
