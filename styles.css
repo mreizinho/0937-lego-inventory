@@ -506,3 +506,20 @@ html,body{height:100%;overflow:hidden}
 
 /* Keep every Cancelar action visually consistent. */
 .movement-cancel,.batch-actions [data-action="batch-cancel"]{background:#a65a55;color:#fff}
+
+
+/* Swipe-to-delete rows in batch review. */
+.batch-swipe-item{position:relative;overflow:hidden;background:#a33e38;touch-action:pan-y;transition:opacity .22s ease,transform .22s ease}
+.batch-swipe-delete{position:absolute;z-index:0;top:0;right:0;bottom:0;width:96px;display:flex;align-items:center;justify-content:center;background:#a33e38;color:#fff}
+.batch-swipe-delete .material-symbols-outlined{font-size:34px}
+.batch-swipe-content{position:relative;z-index:1;background:#fff;will-change:transform}
+.batch-swipe-content.batch-swipe-animating{transition:transform .22s ease}
+.batch-swipe-removing{opacity:0;transform:scale(.98)}
+.batch-swipe-item .batch-item-main{grid-template-columns:76px minmax(0,1fr) 112px}
+.batch-review-actions{grid-template-columns:1fr 1fr}
+.batch-review-actions .primary:last-child{grid-column:auto}
+@media(max-width:850px){
+  .batch-swipe-item .batch-item-main{grid-template-columns:58px minmax(0,1fr) 88px}
+  .batch-review-actions{grid-template-columns:1fr 1fr}
+  .batch-review-actions .primary:last-child{grid-column:auto}
+}
