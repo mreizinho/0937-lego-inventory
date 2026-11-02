@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventario-lego-v5";
+const CACHE_NAME = "inventario-lego-v6";
 const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./public/favicon.svg", "./public/pwa/icon.png", "./public/pwa/icon-192.png", "./public/pwa/icon-512.png", "./public/pwa/apple-touch-icon.png", "./public/pwa/splash.png"];
 
 self.addEventListener("install", event => {
