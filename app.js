@@ -1016,10 +1016,16 @@ function clearMobileSwipeStyles(element) {
   element.style.removeProperty("transform");
 }
 
-function mobileSwipeVisualOffset(deltaX) {
+function adjacentMobileSwipeMode(direction) {
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
+  const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
+  if (state.mode === "update" && nextMode === "inventario") return undefined;
+  return nextMode;
+}
+
+function mobileSwipeVisualOffset(deltaX) {
   const direction = deltaX < 0 ? 1 : -1;
-  return MOBILE_SWIPE_MODES[currentIndex + direction] === undefined ? deltaX * .22 : deltaX;
+  return adjacentMobileSwipeMode(direction) === undefined ? deltaX * .22 : deltaX;
 }
 
 function mobileSwipeMarkupForMode(mode) {
@@ -1032,7 +1038,7 @@ function mobileSwipeMarkupForMode(mode) {
 function prepareMobileSwipePreview(gesture, direction) {
   if (!gesture?.content) return null;
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
-  const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
+  const nextMode = adjacentMobileSwipeMode(direction);
   if (!gesture.stage) {
     const stage = document.createElement("div");
     stage.className = "mobile-swipe-stage";
@@ -1103,7 +1109,7 @@ async function returnMobileSwipeContent(gesture) {
 
 async function activateAdjacentMobileTab(direction, gesture) {
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
-  const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
+  const nextMode = adjacentMobileSwipeMode(direction);
   if (currentIndex < 0 || nextMode === undefined || mobileSwipeAnimating) {
     await returnMobileSwipeContent(gesture);
     return;
@@ -2430,8 +2436,7 @@ document.addEventListener("touchend", event => {
   const deltaY = touch.clientY - gesture.y;
   if (gesture.horizontal) event.preventDefault();
   const direction = deltaX < 0 ? 1 : -1;
-  const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
-  const hasAdjacentTab = MOBILE_SWIPE_MODES[currentIndex + direction] !== undefined;
+  const hasAdjacentTab = adjacentMobileSwipeMode(direction) !== undefined;
   const shouldNavigate = gesture.horizontal && hasAdjacentTab && Math.abs(deltaX) >= 65 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25 && performance.now() - gesture.startedAt <= 900;
   if (shouldNavigate) void activateAdjacentMobileTab(direction, gesture);
   else if (gesture.horizontal) void returnMobileSwipeContent(gesture);
