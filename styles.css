@@ -494,4 +494,4 @@ html,body{height:100%;overflow:hidden}
 
 /* Align the Comunidade 0937 logo with the forum header. */
 @media(min-width:851px){.masthead:has(.brand){padding-left:80px}.masthead:has(.brand) .brand img{left:-32px}}
-@media(min-width:851px){.movement-header-back{left:calc(87.5vw - 23px)}.movement-header h1{position:fixed;left:50vw;transform:translateX(-50%);width:max-content;text-align:center}}
+@media(min-width:851px){.movement-header-back{left:calc(var(--movement-divider-x,87.5vw) - 23px)}.movement-header h1{position:absolute;top:54px;left:var(--movement-viewport-center,50vw);transform:translateX(-50%);width:max-content;text-align:center}}
