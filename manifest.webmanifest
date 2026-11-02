@@ -1,0 +1,26 @@
+{
+  "name": "Inventário LEGO · Comunidade 0937",
+  "short_name": "Inventário LEGO",
+  "description": "Gestão de entradas, saídas e inventário de conjuntos LEGO da Comunidade 0937.",
+  "lang": "pt-PT",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#444647",
+  "icons": [
+    {
+      "src": "public/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "public/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
