@@ -555,3 +555,31 @@ html,body{height:100%;overflow:hidden}
 @media(prefers-reduced-motion:reduce){
   .batch-trash-lid,.batch-trash-body,.batch-swipe-ready .batch-swipe-delete .batch-trash-icon,.batch-swipe-confirmed .batch-swipe-delete .batch-trash-icon{animation:none;transition:none}
 }
+
+
+/* Application-owned confirmation dialogs replace browser-native prompts. */
+.app-confirm-overlay{position:fixed;z-index:500;inset:0;display:grid;place-items:center;padding:20px;background:rgba(18,21,23,.58);opacity:0;transition:opacity .18s ease}
+.app-confirm-overlay.open{opacity:1}
+.app-confirm-dialog{width:min(440px,100%);padding:28px;border:1px solid #d9dddf;border-radius:18px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;transform:translateY(12px) scale(.98);transition:transform .18s ease}
+.app-confirm-overlay.open .app-confirm-dialog{transform:translateY(0) scale(1)}
+.app-confirm-icon{width:54px;height:54px;display:grid;place-items:center;margin:0 auto 16px;border-radius:50%;background:#fff0d0;color:#a66b00}
+.app-confirm-icon svg{width:30px;height:30px;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.app-confirm-dialog h2{margin:0;color:#292c2e;font-size:24px;line-height:1.2}
+.app-confirm-dialog p{margin:12px 0 24px;color:#686e72;font-size:15px;line-height:1.5}
+.app-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.app-confirm-actions button{min-height:54px;padding:12px;border:0;border-radius:14px;box-shadow:0 5px 0 #d0d2d3;font-size:14px;font-weight:800;letter-spacing:.7px;cursor:pointer}
+.app-confirm-actions button:active{transform:translateY(3px);box-shadow:0 2px 0 #d0d2d3}
+.app-confirm-cancel{background:#8b9093;color:#fff}
+.app-confirm-accept{background:#ffd600;color:#171717}
+.app-confirm-accept.danger{background:#a65a55;color:#fff}
+.app-confirm-actions button:focus-visible{outline:3px solid rgba(25,51,74,.3);outline-offset:3px}
+@media(max-width:520px){
+  .app-confirm-overlay{align-items:end;padding:14px}
+  .app-confirm-dialog{padding:24px 20px 22px;border-radius:18px}
+  .app-confirm-dialog h2{font-size:21px}
+  .app-confirm-actions{grid-template-columns:1fr}
+  .app-confirm-accept{grid-row:1}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-confirm-overlay,.app-confirm-dialog{transition:none}
+}
