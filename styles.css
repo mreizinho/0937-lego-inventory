@@ -540,3 +540,18 @@ html,body{height:100%;overflow:hidden}
   .batch-swipe-item:hover .batch-desktop-delete{color:#171717}
   .batch-swipe-item .batch-desktop-delete:hover,.batch-swipe-item .batch-desktop-delete:focus-visible{background:#a33e38;color:#fff}
 }
+
+
+/* Material-style trash reaction while a batch row crosses the delete threshold. */
+.batch-trash-lid,.batch-trash-body{transform-box:fill-box;transform-origin:center;transition:transform .18s cubic-bezier(.2,.8,.2,1)}
+.batch-swipe-ready .batch-swipe-delete .batch-trash-lid{transform:translate(-1px,-2px) rotate(-13deg)}
+.batch-swipe-ready .batch-swipe-delete .batch-trash-body{animation:batch-trash-nudge .28s ease both}
+.batch-swipe-ready .batch-swipe-delete .batch-trash-icon{animation:batch-trash-pop .25s ease both}
+.batch-swipe-confirmed .batch-swipe-delete .batch-trash-icon{animation:batch-trash-confirm .34s cubic-bezier(.2,.85,.3,1.2) both}
+.batch-swipe-confirmed .batch-swipe-delete .batch-trash-lid{transform:translate(-2px,-4px) rotate(-20deg)}
+@keyframes batch-trash-nudge{0%{transform:translateY(0)}50%{transform:translateY(1.5px)}100%{transform:translateY(0)}}
+@keyframes batch-trash-pop{0%{transform:scale(.86)}65%{transform:scale(1.13)}100%{transform:scale(1)}}
+@keyframes batch-trash-confirm{0%{transform:scale(1)}45%{transform:scale(1.22) rotate(-4deg)}100%{transform:scale(.78);opacity:.2}}
+@media(prefers-reduced-motion:reduce){
+  .batch-trash-lid,.batch-trash-body,.batch-swipe-ready .batch-swipe-delete .batch-trash-icon,.batch-swipe-confirmed .batch-swipe-delete .batch-trash-icon{animation:none;transition:none}
+}
