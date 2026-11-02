@@ -1,5 +1,5 @@
-const CACHE_NAME = "inventario-lego-v1";
-const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./public/favicon.svg"];
+const CACHE_NAME = "inventario-lego-v2";
+const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./public/favicon.svg", "./public/pwa/icon-192.png", "./public/pwa/icon-512.png", "./public/pwa/apple-touch-icon.png", "./public/pwa/splash.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
