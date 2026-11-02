@@ -858,6 +858,17 @@ function resultMarkup(item) {
   return `<article class="set-result"><div class="set-art" style="background:${escapeHtml(item.color)}"><span>#${escapeHtml(item.code)}</span></div><div class="set-copy"><p>${escapeHtml(item.theme)} · ${escapeHtml(item.year)}</p><h3>${escapeHtml(item.name)}</h3><div class="set-meta"><span><small>PEÇAS</small><b>${Number(item.pieces).toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>${item.stock} un.</b></span><span><small>LOCAL</small><b>${escapeHtml(item.location)}</b></span></div></div><button class="confirm-button ${state.mode}" data-action="register">${isBatchMode() ? "Adicionar à picagem" : "Abrir ficha"} <span>→</span></button></article>`;
 }
 
+function syncMovementHeaderAlignment() {
+  const header = document.querySelector(".movement-header");
+  if (!header || window.innerWidth <= 850) return;
+  const viewport = window.visualViewport;
+  const viewportLeft = viewport?.offsetLeft || 0;
+  const viewportWidth = viewport?.width || window.innerWidth;
+  const divider = document.querySelector(".scan-panel:has(.entry-keypad)")?.getBoundingClientRect().left;
+  header.style.setProperty("--movement-viewport-center", `${viewportLeft + viewportWidth / 2}px`);
+  header.style.setProperty("--movement-divider-x", `${Number.isFinite(divider) ? divider : viewportLeft + viewportWidth * .875}px`);
+}
+
 function render() {
   if (isBatchKeypadPoppedOut() && (!isBatchMode() || state.batch.phase !== "scan")) closeBatchKeypadPopout(false);
   const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.mode === "consulta" ? consultationMarkup() : isBatchMode() ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
@@ -876,6 +887,7 @@ function render() {
   updateLotMobileHeaderSummary();
   setupFloatingConsultationFilters();
   renderBatchKeypadWindow();
+  requestAnimationFrame(syncMovementHeaderAlignment);
 }
 
 function updateLotMobileHeaderSummary() {
@@ -3217,6 +3229,10 @@ async function restoreSession() {
   state.checkingCredentials = false;
   render();
 }
+
+window.addEventListener("resize", () => requestAnimationFrame(syncMovementHeaderAlignment));
+window.visualViewport?.addEventListener("resize", () => requestAnimationFrame(syncMovementHeaderAlignment));
+window.visualViewport?.addEventListener("scroll", () => requestAnimationFrame(syncMovementHeaderAlignment));
 
 writeAppHistory("home", true);
 restoreSession();
