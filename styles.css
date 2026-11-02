@@ -547,11 +547,12 @@ html,body{height:100%;overflow:hidden}
 .batch-swipe-ready .batch-swipe-delete .batch-trash-lid{transform:translate(-1px,-2px) rotate(-13deg)}
 .batch-swipe-ready .batch-swipe-delete .batch-trash-body{animation:batch-trash-nudge .28s ease both}
 .batch-swipe-ready .batch-swipe-delete .batch-trash-icon{animation:batch-trash-pop .25s ease both}
-.batch-swipe-confirmed .batch-swipe-delete .batch-trash-icon{animation:batch-trash-confirm .34s cubic-bezier(.2,.85,.3,1.2) both}
-.batch-swipe-confirmed .batch-swipe-delete .batch-trash-lid{transform:translate(-2px,-4px) rotate(-20deg)}
+.batch-swipe-confirmed .batch-swipe-delete .batch-trash-icon{animation:batch-trash-confirm .42s cubic-bezier(.2,.85,.3,1.2) both}
+.batch-swipe-confirmed .batch-swipe-delete .batch-trash-lid{animation:batch-trash-lid-close .42s cubic-bezier(.2,.8,.2,1) both}
 @keyframes batch-trash-nudge{0%{transform:translateY(0)}50%{transform:translateY(1.5px)}100%{transform:translateY(0)}}
 @keyframes batch-trash-pop{0%{transform:scale(.86)}65%{transform:scale(1.13)}100%{transform:scale(1)}}
-@keyframes batch-trash-confirm{0%{transform:scale(1)}45%{transform:scale(1.22) rotate(-4deg)}100%{transform:scale(.78);opacity:.2}}
+@keyframes batch-trash-confirm{0%{transform:scale(1)}42%{transform:scale(1.2) rotate(-4deg)}72%{transform:scale(.96) rotate(1deg)}100%{transform:scale(1);opacity:1}}
+@keyframes batch-trash-lid-close{0%{transform:translate(-1px,-2px) rotate(-13deg)}42%{transform:translate(-2px,-4px) rotate(-20deg)}72%{transform:translate(0,1px) rotate(3deg)}100%{transform:translate(0,0) rotate(0)}}
 @media(prefers-reduced-motion:reduce){
   .batch-trash-lid,.batch-trash-body,.batch-swipe-ready .batch-swipe-delete .batch-trash-icon,.batch-swipe-confirmed .batch-swipe-delete .batch-trash-icon{animation:none;transition:none}
 }
