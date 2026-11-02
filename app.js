@@ -646,7 +646,7 @@ function batchResumePromptMarkup() {
 
 function batchMiniListMarkup() {
   if (!state.batch.items.length) return `<p class="batch-empty">Ainda não foi lido nenhum conjunto.</p>`;
-  return `<div class="batch-mini-list">${state.batch.items.slice(-4).reverse().map(item => `<div><span><b>${escapeHtml(item.code)}</b><small>${escapeHtml(item.name)}</small></span><strong>${item.qty} un.</strong></div>`).join("")}</div>`;
+  return `<div class="batch-mini-list" data-action="batch-review" role="button" tabindex="0" aria-label="Pausar e rever a leitura">${state.batch.items.slice(-4).reverse().map(item => `<div><span><b>${escapeHtml(item.code)}</b><small>${escapeHtml(item.name)}</small></span><strong>${item.qty} un.</strong></div>`).join("")}</div>`;
 }
 
 function isBatchKeypadPoppedOut() {
@@ -3141,6 +3141,12 @@ document.addEventListener("input", event => {
 });
 
 document.addEventListener("keydown", async event => {
+  const reviewList = event.target.closest?.('.batch-mini-list[data-action="batch-review"]');
+  if (reviewList && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    reviewList.click();
+    return;
+  }
   if (state.scannerOpen && event.key === "Escape") {
     window.history.back();
     return;
