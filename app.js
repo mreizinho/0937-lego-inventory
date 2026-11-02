@@ -14,7 +14,7 @@ const SCANNER_CAMERA_KEY = "legoInventoryScannerCamera";
 const SCANNER_SUCCESS_DURATION_MS = 1800;
 const MOBILE_SWIPE_MODES = [null, "sheets", "update", "inventario"];
 // Temporary testing switch: set to true to require Google login before opening app screens again.
-const REQUIRE_GOOGLE_LOGIN_FOR_NAVIGATION = false;
+const REQUIRE_GOOGLE_LOGIN_FOR_NAVIGATION = true;
 
 function emptyMovementForm(defaults = {}) {
   const storage = defaults.storage || "";
