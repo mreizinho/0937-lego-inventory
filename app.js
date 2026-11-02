@@ -887,6 +887,26 @@ function syncMovementHeaderAlignment() {
   }
 }
 
+function syncMovementHeaderNavigation() {
+  const header = document.querySelector(".movement-header");
+  const title = header?.querySelector("h1");
+  const tabs = header?.querySelector(".desktop-tabs");
+  if (!header || !title || !tabs) return;
+
+  header.classList.remove("tabs-collapsed");
+  if (window.innerWidth <= 850) return;
+
+  const titleRect = title.getBoundingClientRect();
+  const tabsRect = tabs.getBoundingClientRect();
+  const needsMenu = tabsRect.left < titleRect.right + 24;
+  header.classList.toggle("tabs-collapsed", needsMenu);
+}
+
+function syncMovementHeaderLayout() {
+  syncMovementHeaderAlignment();
+  syncMovementHeaderNavigation();
+}
+
 function render() {
   if (isBatchKeypadPoppedOut() && (!isBatchMode() || state.batch.phase !== "scan")) closeBatchKeypadPopout(false);
   const content = !state.mode ? optionsMarkup() : state.mode === "sheets" ? googleSheetsMarkup() : state.mode === "update" ? bricksetUpdateMarkup() : state.mode === "consulta" ? consultationMarkup() : isBatchMode() ? batchMarkup() : state.selected && (state.mode === "entrada" || state.mode === "saida") ? foundMarkup() : state.mode === "entrada" || state.mode === "saida" ? keypadMarkup() : genericModeMarkup();
@@ -905,7 +925,7 @@ function render() {
   updateLotMobileHeaderSummary();
   setupFloatingConsultationFilters();
   renderBatchKeypadWindow();
-  requestAnimationFrame(() => requestAnimationFrame(syncMovementHeaderAlignment));
+  requestAnimationFrame(() => requestAnimationFrame(syncMovementHeaderLayout));
 }
 
 function updateLotMobileHeaderSummary() {
@@ -3248,9 +3268,9 @@ async function restoreSession() {
   render();
 }
 
-window.addEventListener("resize", () => requestAnimationFrame(syncMovementHeaderAlignment));
-window.visualViewport?.addEventListener("resize", () => requestAnimationFrame(syncMovementHeaderAlignment));
-window.visualViewport?.addEventListener("scroll", () => requestAnimationFrame(syncMovementHeaderAlignment));
+window.addEventListener("resize", () => requestAnimationFrame(syncMovementHeaderLayout));
+window.visualViewport?.addEventListener("resize", () => requestAnimationFrame(syncMovementHeaderLayout));
+window.visualViewport?.addEventListener("scroll", () => requestAnimationFrame(syncMovementHeaderLayout));
 
 writeAppHistory("home", true);
 restoreSession();
