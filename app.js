@@ -284,6 +284,7 @@ let barcodeFrameCanvas = null;
 let scannerAudioContext = null;
 let scannerSuccessTimer = null;
 let scannerSuccessResume = null;
+let batchScannerStockWarning = "";
 let barcodeVideoDevices = [];
 let movementNoticeTimer = null;
 let mobileSwipeGesture = null;
@@ -1413,6 +1414,7 @@ function addCodeToBatch(rawCode, fromScanner = false) {
 }
 
 async function processBatchCode(rawCode, fromScanner = false) {
+  if (fromScanner) batchScannerStockWarning = "";
   const batch = state.batch;
   const code = String(rawCode || "").replace(/\D/g, "");
   if (!code) return false;
@@ -1436,6 +1438,7 @@ async function processBatchCode(rawCode, fromScanner = false) {
     const available = locations.reduce((total, location) => total + location.stock, 0);
     const nextQuantity = (Number(item?.qty) || 0) + 1;
     if (nextQuantity > available) {
+      if (fromScanner && !available) batchScannerStockWarning = "Set sem stock disponível.";
       showMovementNotice(available ? `Stock máximo atingido para ${found.code}: ${available} un.` : `Não há stock do conjunto ${found.code}.`, "error");
       if (!fromScanner) render();
       return false;
@@ -1935,7 +1938,7 @@ function dismissScannerSuccessOverlay(resume = true) {
   if (resume) resumeScan?.();
 }
 
-function showScannerSuccessOverlay(resumeScan) {
+function showScannerSuccessOverlay(resumeScan, warning = "") {
   const overlay = document.querySelector(".camera-scan-success");
   if (!overlay) {
     resumeScan();
@@ -1943,6 +1946,10 @@ function showScannerSuccessOverlay(resumeScan) {
   }
   if (scannerSuccessTimer) window.clearTimeout(scannerSuccessTimer);
   scannerSuccessResume = resumeScan;
+  overlay.classList.toggle("camera-scan-warning", Boolean(warning));
+  overlay.setAttribute("aria-label", warning ? `${warning} Tocar para continuar.` : "Leitura aceite. Tocar para continuar.");
+  const icon = overlay.querySelector("span");
+  icon.innerHTML = warning ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z" stroke-linejoin="round"/><path d="M12 9v5" stroke-linecap="round"/><circle cx="12" cy="17.5" r=".6" fill="currentColor" stroke="none"/></svg>' : "✓";
   overlay.removeAttribute("hidden");
   scannerSuccessTimer = window.setTimeout(() => dismissScannerSuccessOverlay(), SCANNER_SUCCESS_DURATION_MS);
 }
@@ -2284,7 +2291,7 @@ async function openBarcodeScanner(addHistory = true) {
                   lastBatchEanAt = acceptedAt;
                   const added = await addCodeToBatch(ean, true);
                   updateScannerStatus(added
-                    ? `${found.code} adicionado · ${batchUnitCount()} un. na picagem. Aponte para o próximo código.`
+                    ? `${found.code} adicionado · ${batchUnitCount()} un. na leitura. Aponte para o próximo código.`
                     : `Não foi possível adicionar ${found.code}. Aponte para outro código.`);
                   if (added) {
                     playScannerConfirmationBeep();
@@ -2292,6 +2299,14 @@ async function openBarcodeScanner(addHistory = true) {
                     showScannerSuccessOverlay(() => {
                       if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
                     });
+                    return;
+                  }
+                  if (!added && batchScannerStockWarning) {
+                    const warning = batchScannerStockWarning;
+                    updateScannerStatus(`${found.code}: ${warning}`);
+                    showScannerSuccessOverlay(() => {
+                      if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
+                    }, warning);
                     return;
                   }
                 }
