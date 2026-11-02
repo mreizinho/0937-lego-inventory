@@ -615,7 +615,7 @@ function batchTypeMarkup() {
       <button type="button" class="option-card batch-type entrada" data-action="batch-type" data-batch-type="entrada"><span class="mode-option-image"><img src="public/options/entrada.png" alt=""></span><span><strong>ENTRADA</strong><small>Registar todos os sets recebidos</small></span><b>›</b></button>
       <button type="button" class="option-card batch-type saida" data-action="batch-type" data-batch-type="saida"><span class="mode-option-image"><img src="public/options/saida.png" alt=""></span><span><strong>SAÍDA</strong><small>Retirar todos os sets picados</small></span><b>›</b></button>
     </div>
-    <button type="button" class="batch-text-button" data-action="batch-cancel">Cancelar</button>
+    <div class="batch-actions batch-type-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button></div>
   </section></section>`;
 }
 
