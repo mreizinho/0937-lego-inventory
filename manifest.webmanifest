@@ -11,22 +11,10 @@
   "theme_color": "#444647",
   "icons": [
     {
-      "src": "public/pwa/icon-192.png?v=20261102-80",
-      "sizes": "192x192",
+      "src": "public/pwa/icon.png?v=20261102-original",
+      "sizes": "250x250",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "public/pwa/icon-512.png?v=20261102-80",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "public/pwa/icon-512.png?v=20261102-80",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ]
 }
