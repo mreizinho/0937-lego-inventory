@@ -583,12 +583,12 @@ function consultationFilterMarkup() {
 
 function consultationResultMarkup(item) {
   const locations = item.locations.map(location => `<span><b>${escapeHtml(location.storage)}</b><small>${location.stock.toLocaleString("pt-PT")} un.</small></span>`).join("");
-  const value = Number.isFinite(item.value) ? `${formatMoneyValue(item.value)} / un.` : "Valor não disponível";
+  const pvr = Number.isFinite(item.value) ? `<small class="consultation-pvr">PVR ${escapeHtml(formatMoneyValue(item.value))}</small>` : "";
   return `<article class="consultation-item">
     ${item.imageUrl ? `<button type="button" class="consultation-item-image consultation-image-button" data-action="consultation-image" data-set-code="${escapeHtml(item.code)}" aria-label="Ver imagem de ${escapeHtml(item.code)}"><img src="${escapeHtml(item.imageUrl)}" alt=""></button>` : `<span class="consultation-item-image">#</span>`}
     <span class="consultation-item-copy"><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme)} · ${item.year || "—"}</small></span>
     <span class="consultation-locations">${locations}</span>
-    <span class="consultation-item-summary"><b>Total: ${item.stock.toLocaleString("pt-PT")} un.</b><small class="consultation-pvr">PVR ${Number.isFinite(item.value) ? escapeHtml(formatMoneyValue(item.value)) : "—"}</small></span>
+    <span class="consultation-item-summary"><b>Total: ${item.stock.toLocaleString("pt-PT")} un.</b>${pvr}</span>
   </article>`;
 }
 
