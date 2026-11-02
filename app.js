@@ -2404,6 +2404,44 @@ async function openBarcodeScanner(addHistory = true) {
   }
 }
 
+function showAppConfirm({ title = "Confirmar ação", message, confirmLabel = "CONFIRMAR", cancelLabel = "CANCELAR", danger = false } = {}) {
+  return new Promise(resolve => {
+    const overlay = document.createElement("div");
+    overlay.className = "app-confirm-overlay";
+    overlay.innerHTML = '<section class="app-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="app-confirm-title" aria-describedby="app-confirm-message"><div class="app-confirm-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v5M12 17.5v.5"/></svg></div><h2 id="app-confirm-title"></h2><p id="app-confirm-message"></p><div class="app-confirm-actions"><button type="button" class="app-confirm-cancel"></button><button type="button" class="app-confirm-accept"></button></div></section>';
+    const dialog = overlay.querySelector(".app-confirm-dialog");
+    const cancel = overlay.querySelector(".app-confirm-cancel");
+    const accept = overlay.querySelector(".app-confirm-accept");
+    overlay.querySelector("#app-confirm-title").textContent = title;
+    overlay.querySelector("#app-confirm-message").textContent = message || "";
+    cancel.textContent = cancelLabel;
+    accept.textContent = confirmLabel;
+    accept.classList.toggle("danger", danger);
+    const finish = result => {
+      document.removeEventListener("keydown", onKeyDown);
+      overlay.classList.remove("open");
+      window.setTimeout(() => overlay.remove(), 180);
+      resolve(result);
+    };
+    const onKeyDown = event => {
+      if (event.key === "Escape") finish(false);
+      if (event.key === "Tab") {
+        const controls = [cancel, accept];
+        const index = controls.indexOf(document.activeElement);
+        if (event.shiftKey && index <= 0) { event.preventDefault(); accept.focus(); }
+        else if (!event.shiftKey && index === controls.length - 1) { event.preventDefault(); cancel.focus(); }
+      }
+    };
+    cancel.addEventListener("click", () => finish(false), { once: true });
+    accept.addEventListener("click", () => finish(true), { once: true });
+    overlay.addEventListener("click", event => { if (event.target === overlay) finish(false); });
+    document.addEventListener("keydown", onKeyDown);
+    document.body.appendChild(overlay);
+    window.requestAnimationFrame(() => overlay.classList.add("open"));
+    cancel.focus();
+  });
+}
+
 function resetBatchRowSwipe(row) {
   const content = row?.querySelector(".batch-swipe-content");
   if (!content) return;
@@ -2416,14 +2454,20 @@ function resetBatchRowSwipe(row) {
   }, 240);
 }
 
-function removeBatchRowAfterSwipe(row) {
+async function removeBatchRowAfterSwipe(row) {
   const code = row?.dataset.batchCode;
   const item = batchItemByCode(code);
   if (!item) {
     resetBatchRowSwipe(row);
     return;
   }
-  if (!window.confirm("Apagar " + item.code + " · " + item.name + " do " + (isInventoryMode() ? "inventário" : "lote") + "?")) {
+  const confirmed = await showAppConfirm({
+    title: "Apagar referência?",
+    message: "Apagar " + item.code + " · " + item.name + " do " + (isInventoryMode() ? "inventário" : "lote") + "?",
+    confirmLabel: "APAGAR",
+    danger: true,
+  });
+  if (!confirmed) {
     resetBatchRowSwipe(row);
     return;
   }
@@ -2795,7 +2839,7 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "batch-cancel") {
-    if (state.batch.items.length && !window.confirm(`Cancelar esta leitura e apagar o rascunho do ${isInventoryMode() ? "inventário" : "lote"}?`)) return;
+    if (state.batch.items.length && !await showAppConfirm({ title: "Cancelar leitura?", message: `O rascunho do ${isInventoryMode() ? "inventário" : "lote"} será apagado.`, confirmLabel: "APAGAR RASCUNHO", danger: true })) return;
     clearBatchDraft();
     Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementNotice: null });
     writeAppHistory("home");
@@ -2815,7 +2859,7 @@ document.addEventListener("click", async event => {
   if (action === "batch-item-remove") {
     const code = event.target.closest("[data-batch-code]")?.dataset.batchCode;
     const item = batchItemByCode(code);
-    if (!item || !window.confirm(`Apagar ${item.code} · ${item.name} do ${isInventoryMode() ? "inventário" : "lote"}?`)) return;
+    if (!item || !await showAppConfirm({ title: "Apagar referência?", message: `Apagar ${item.code} · ${item.name} do ${isInventoryMode() ? "inventário" : "lote"}?`, confirmLabel: "APAGAR", danger: true })) return;
     state.batch.items = state.batch.items.filter(item => String(item.code) !== String(code));
     if (!state.batch.items.length) state.batch.phase = "scan";
     persistBatchDraft();
