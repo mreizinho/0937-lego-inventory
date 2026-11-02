@@ -872,8 +872,8 @@ function syncMovementHeaderAlignment() {
   const viewport = window.visualViewport;
   const visibleLeft = viewport?.offsetLeft || 0;
   const visibleWidth = viewport?.width || document.documentElement.clientWidth;
-  const desktopPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const desktopLayout = desktopPointer && visibleWidth > 850;
+  // Usa o mesmo limite visual do CSS; ecrãs táteis em desktop também contam.
+  const desktopLayout = visibleWidth > 850;
   header.classList.toggle("keypad-desktop-aligned", desktopLayout);
 
   if (desktopLayout) {
