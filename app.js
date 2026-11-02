@@ -860,13 +860,18 @@ function resultMarkup(item) {
 
 function syncMovementHeaderAlignment() {
   const header = document.querySelector(".movement-header");
-  if (!header || window.innerWidth <= 850) return;
+  if (!header) return;
+  const desktopScreenWidth = Math.max(window.screen?.width || 0, window.screen?.availWidth || 0);
+  const dividerElement = document.querySelector(".scan-panel:has(.entry-keypad)");
+  const useDesktopAlignment = desktopScreenWidth > 850 && dividerElement;
+  header.classList.toggle("keypad-desktop-aligned", Boolean(useDesktopAlignment));
+  if (!useDesktopAlignment) return;
   const viewport = window.visualViewport;
   const viewportLeft = viewport?.offsetLeft || 0;
   const viewportWidth = viewport?.width || window.innerWidth;
-  const divider = document.querySelector(".scan-panel:has(.entry-keypad)")?.getBoundingClientRect().left;
+  const divider = dividerElement.getBoundingClientRect().left;
   header.style.setProperty("--movement-viewport-center", `${viewportLeft + viewportWidth / 2}px`);
-  header.style.setProperty("--movement-divider-x", `${Number.isFinite(divider) ? divider : viewportLeft + viewportWidth * .875}px`);
+  header.style.setProperty("--movement-divider-x", `${divider}px`);
 }
 
 function render() {
