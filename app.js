@@ -625,9 +625,9 @@ function inventoryNameMarkup() {
     <div class="sheets-copy inventory-name-copy">
       <p class="sheets-eyebrow">INVENTÁRIO</p>
       <h2>Criar novo inventário</h2>
-      <p>Dá um nome ao novo sheet. A estrutura será igual à do sheet Movimentos e só será criada quando concluíres a picagem.</p>
+      <p>Dá um nome ao novo sheet. A estrutura será igual à do sheet Movimentos e só será criada quando concluíres a leitura.</p>
       <div class="inventory-name-field"><label for="inventory-sheet-name">Nome do novo sheet <b aria-hidden="true">*</b></label><div class="inventory-sheet-name-control"><input id="inventory-sheet-name" data-inventory-sheet-name value="${escapeHtml(inventorySheetBaseName(state.batch.sheetName))}" maxlength="96" required autocomplete="off" placeholder="Ex.: Teste"></div></div>
-      <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="primary" data-action="inventory-start"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A VERIFICAR…" : "COMEÇAR PICAGEM"}</button></div>
+      <div class="batch-actions"><button type="button" class="secondary" data-action="batch-cancel">CANCELAR</button><button type="button" class="primary" data-action="inventory-start"${state.batch.saving ? " disabled" : ""}>${state.batch.saving ? "A VERIFICAR…" : "COMEÇAR LEITURA"}</button></div>
     </div>
   </article></section>`;
 }
@@ -638,7 +638,7 @@ function batchResumePromptMarkup() {
   const inventory = isInventoryMode();
   const subject = inventory ? `um inventário “${escapeHtml(inventorySheetTitle(state.batch.sheetName))}”` : `uma ${state.batch.movementType === "saida" ? "saída" : "entrada"} em lote`;
   return `<section class="workspace batch-page"><section class="batch-panel batch-resume-prompt">
-    <div class="batch-heading"><p>${inventory ? "INVENTÁRIO" : "LOTE"} EM CURSO</p><h2>Existe uma picagem por concluir</h2><span>Encontrámos ${subject} com ${units} ${units === 1 ? "unidade" : "unidades"} e ${references} ${references === 1 ? "referência" : "referências"}.</span></div>
+    <div class="batch-heading"><p>${inventory ? "INVENTÁRIO" : "LOTE"} EM CURSO</p><h2>Existe uma leitura por concluir</h2><span>Encontrámos ${subject} com ${units} ${units === 1 ? "unidade" : "unidades"} e ${references} ${references === 1 ? "referência" : "referências"}.</span></div>
     <p>Queres continuar a leitura corrente ou apagá-la e começar ${inventory ? "um novo inventário" : "um novo lote"}?</p>
     <div class="batch-actions"><button type="button" class="secondary batch-view-draft" data-action="batch-view-draft">VER ${inventory ? "INVENTÁRIO" : "LOTE"}</button><button type="button" class="secondary batch-delete-draft" data-action="batch-discard-draft">APAGAR LEITURA</button><button type="button" class="primary" data-action="batch-continue-draft">CONTINUAR</button></div>
   </section></section>`;
@@ -855,7 +855,7 @@ function batchMarkup() {
 }
 
 function resultMarkup(item) {
-  return `<article class="set-result"><div class="set-art" style="background:${escapeHtml(item.color)}"><span>#${escapeHtml(item.code)}</span></div><div class="set-copy"><p>${escapeHtml(item.theme)} · ${escapeHtml(item.year)}</p><h3>${escapeHtml(item.name)}</h3><div class="set-meta"><span><small>PEÇAS</small><b>${Number(item.pieces).toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>${item.stock} un.</b></span><span><small>LOCAL</small><b>${escapeHtml(item.location)}</b></span></div></div><button class="confirm-button ${state.mode}" data-action="register">${isBatchMode() ? "Adicionar à picagem" : "Abrir ficha"} <span>→</span></button></article>`;
+  return `<article class="set-result"><div class="set-art" style="background:${escapeHtml(item.color)}"><span>#${escapeHtml(item.code)}</span></div><div class="set-copy"><p>${escapeHtml(item.theme)} · ${escapeHtml(item.year)}</p><h3>${escapeHtml(item.name)}</h3><div class="set-meta"><span><small>PEÇAS</small><b>${Number(item.pieces).toLocaleString("pt-PT")}</b></span><span><small>STOCK</small><b>${item.stock} un.</b></span><span><small>LOCAL</small><b>${escapeHtml(item.location)}</b></span></div></div><button class="confirm-button ${state.mode}" data-action="register">${isBatchMode() ? "Adicionar à leitura" : "Abrir ficha"} <span>→</span></button></article>`;
 }
 
 function syncMovementHeaderAlignment() {
@@ -2695,7 +2695,7 @@ document.addEventListener("click", async event => {
     return;
   }
   if (action === "batch-cancel") {
-    if (state.batch.items.length && !window.confirm(`Cancelar esta picagem e apagar o rascunho do ${isInventoryMode() ? "inventário" : "lote"}?`)) return;
+    if (state.batch.items.length && !window.confirm(`Cancelar esta leitura e apagar o rascunho do ${isInventoryMode() ? "inventário" : "lote"}?`)) return;
     clearBatchDraft();
     Object.assign(state, { mode: null, query: "", selected: null, menuOpen: false, movementNotice: null });
     writeAppHistory("home");
@@ -2998,7 +2998,7 @@ document.addEventListener("click", async event => {
   if (action === "login") { loginWithGoogle(); return; }
   if (action === "logout") { logoutGoogle(); return; }
   if (action === "open-sheet") window.open(`https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/edit`, "_blank", "noopener");
-  if (action === "register") state.status = `${isBatchMode() ? "Item adicionado à picagem" : "Consulta"} preparada para ${state.selected.code}.`;
+  if (action === "register") state.status = `${isBatchMode() ? "Item adicionado à leitura" : "Consulta"} preparada para ${state.selected.code}.`;
   render();
 });
 
