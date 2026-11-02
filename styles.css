@@ -523,3 +523,15 @@ html,body{height:100%;overflow:hidden}
   .batch-review-actions{grid-template-columns:1fr 1fr}
   .batch-review-actions .primary:last-child{grid-column:auto}
 }
+
+
+/* Desktop delete action for batch review rows. */
+.batch-desktop-delete{display:none}
+@media(min-width:851px){
+  .batch-swipe-item .batch-item-main{grid-template-columns:76px minmax(0,1fr) 112px 46px}
+  .batch-desktop-delete{width:42px;height:42px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:#f1f3f4;color:#a33e38;opacity:0;transform:scale(.9);transition:opacity .16s ease,transform .16s ease,background-color .16s ease,color .16s ease;cursor:pointer}
+  .batch-swipe-item:hover .batch-desktop-delete,.batch-swipe-item:focus-within .batch-desktop-delete{opacity:1;transform:scale(1)}
+  .batch-desktop-delete:hover,.batch-desktop-delete:focus-visible{background:#a33e38;color:#fff;outline:0}
+  .batch-desktop-delete:focus-visible{box-shadow:0 0 0 3px rgba(163,62,56,.24)}
+  .batch-desktop-delete .material-symbols-outlined{font-size:24px}
+}
