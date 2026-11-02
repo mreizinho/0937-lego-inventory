@@ -860,18 +860,31 @@ function resultMarkup(item) {
 
 function syncMovementHeaderAlignment() {
   const header = document.querySelector(".movement-header");
-  if (!header) return;
-  const desktopScreenWidth = Math.max(window.screen?.width || 0, window.screen?.availWidth || 0);
-  const dividerElement = document.querySelector(".scan-panel:has(.entry-keypad)");
-  const useDesktopAlignment = desktopScreenWidth > 850 && dividerElement;
-  header.classList.toggle("keypad-desktop-aligned", Boolean(useDesktopAlignment));
-  if (!useDesktopAlignment) return;
+  const keypad = document.querySelector(".entry-keypad");
+  const panel = keypad?.closest(".scan-panel");
+  const back = header?.querySelector(".movement-header-back");
+  const title = header?.querySelector("h1");
+  if (!header || !panel || !back || !title) return;
+
+  const desktopDevice = window.matchMedia("(hover: hover)").matches
+    || /Windows|Macintosh|Linux/i.test(navigator.userAgent);
+  header.classList.toggle("keypad-desktop-aligned", desktopDevice);
+  if (!desktopDevice) {
+    back.style.removeProperty("left");
+    title.style.removeProperty("left");
+    return;
+  }
+
+  const headerRect = header.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
   const viewport = window.visualViewport;
-  const viewportLeft = viewport?.offsetLeft || 0;
-  const viewportWidth = viewport?.width || window.innerWidth;
-  const divider = dividerElement.getBoundingClientRect().left;
-  header.style.setProperty("--movement-viewport-center", `${viewportLeft + viewportWidth / 2}px`);
-  header.style.setProperty("--movement-divider-x", `${divider}px`);
+  const visibleLeft = viewport?.offsetLeft || 0;
+  const visibleWidth = viewport?.width || document.documentElement.clientWidth;
+  const dividerX = panelRect.left - headerRect.left;
+  const visibleCenterX = visibleLeft + visibleWidth / 2 - headerRect.left;
+
+  back.style.left = `${dividerX - back.getBoundingClientRect().width / 2}px`;
+  title.style.left = `${visibleCenterX}px`;
 }
 
 function render() {
@@ -892,7 +905,7 @@ function render() {
   updateLotMobileHeaderSummary();
   setupFloatingConsultationFilters();
   renderBatchKeypadWindow();
-  requestAnimationFrame(syncMovementHeaderAlignment);
+  requestAnimationFrame(() => requestAnimationFrame(syncMovementHeaderAlignment));
 }
 
 function updateLotMobileHeaderSummary() {
