@@ -866,10 +866,13 @@ function syncMovementHeaderAlignment() {
   const title = header?.querySelector("h1");
   if (!header || !panel || !back || !title) return;
 
-  const desktopDevice = window.matchMedia("(hover: hover)").matches
-    || /Windows|Macintosh|Linux/i.test(navigator.userAgent);
-  header.classList.toggle("keypad-desktop-aligned", desktopDevice);
-  if (!desktopDevice) {
+  const viewport = window.visualViewport;
+  const visibleLeft = viewport?.offsetLeft || 0;
+  const visibleWidth = viewport?.width || document.documentElement.clientWidth;
+  const desktopPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const desktopLayout = desktopPointer && visibleWidth > 850;
+  header.classList.toggle("keypad-desktop-aligned", desktopLayout);
+  if (!desktopLayout) {
     back.style.removeProperty("left");
     title.style.removeProperty("left");
     return;
@@ -877,9 +880,6 @@ function syncMovementHeaderAlignment() {
 
   const headerRect = header.getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
-  const viewport = window.visualViewport;
-  const visibleLeft = viewport?.offsetLeft || 0;
-  const visibleWidth = viewport?.width || document.documentElement.clientWidth;
   const dividerX = panelRect.left - headerRect.left;
   const visibleCenterX = visibleLeft + visibleWidth / 2 - headerRect.left;
 
