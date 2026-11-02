@@ -2472,14 +2472,14 @@ async function removeBatchRowAfterSwipe(row) {
     return;
   }
   row.classList.add("batch-swipe-confirmed");
-  window.setTimeout(() => row.classList.add("batch-swipe-removing"), 120);
+  window.setTimeout(() => row.classList.add("batch-swipe-removing"), 420);
   window.setTimeout(() => {
     state.batch.items = state.batch.items.filter(entry => String(entry.code) !== String(code));
     if (!state.batch.items.length) state.batch.phase = "scan";
     persistBatchDraft();
     if (state.batch.phase === "review") renderPreservingContentScroll();
     else render();
-  }, 220);
+  }, 620);
 }
 
 document.addEventListener("touchstart", event => {
