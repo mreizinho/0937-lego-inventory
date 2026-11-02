@@ -494,3 +494,4 @@ html,body{height:100%;overflow:hidden}
 
 /* Align the Comunidade 0937 logo with the forum header. */
 @media(min-width:851px){.masthead:has(.brand){padding-left:80px}.masthead:has(.brand) .brand img{left:-32px}}
+@media(min-width:851px){.movement-header-back{left:max(28px,calc((100vw - 1040px)/2))}.movement-header h1{left:50%;transform:translateX(-50%);width:max-content;text-align:center}}
