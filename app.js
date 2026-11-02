@@ -658,7 +658,7 @@ function batchScanMarkup() {
   const units = batchUnitCount();
   const keypadPoppedOut = isBatchKeypadPoppedOut();
   const keypadSection = keypadPoppedOut ? "" : `
-    <div class="batch-heading"><p>${isInventoryMode() ? `INVENTÁRIO · ${escapeHtml(inventorySheetTitle(state.batch.sheetName))}` : `${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE`}</p><h2>Picar conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
+    <div class="batch-heading"><p>${isInventoryMode() ? `INVENTÁRIO · ${escapeHtml(inventorySheetTitle(state.batch.sheetName))}` : `${state.batch.movementType === "entrada" ? "ENTRADA" : "SAÍDA"} EM LOTE`}</p><h2>Ler conjuntos</h2><span>Cada leitura adiciona uma unidade. A câmara permanece aberta para leituras consecutivas.</span></div>
     <div class="batch-keypad-shell"><button type="button" class="batch-keypad-popout-button" data-action="batch-keypad-popout" aria-label="Abrir teclado numa janela sempre visível" title="Abrir teclado numa janela sempre visível">${icons.popout}</button><div class="entry-keypad lote batch-keypad">${keypadControlsMarkup("batch-add-code")}</div></div>
     <hr class="batch-keypad-divider">`;
   return `<section class="workspace batch-page"><section class="batch-panel batch-scan-panel${keypadPoppedOut ? " batch-keypad-detached" : ""}">
