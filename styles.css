@@ -586,8 +586,8 @@ html,body{height:100%;overflow:hidden}
 }
 
 
-/* Reuse the trash open-and-close animation when a desktop row is hovered. */
+/* Animate only when the desktop delete button itself is hovered. */
 @media(min-width:851px) and (hover:hover){
-  .batch-swipe-item:hover .batch-desktop-delete .batch-trash-icon{animation:batch-trash-confirm .42s cubic-bezier(.2,.85,.3,1.2) both}
-  .batch-swipe-item:hover .batch-desktop-delete .batch-trash-lid{animation:batch-trash-lid-close .42s cubic-bezier(.2,.8,.2,1) both}
+  .batch-swipe-item .batch-desktop-delete:hover .batch-trash-icon{animation:batch-trash-confirm .42s cubic-bezier(.2,.85,.3,1.2) both}
+  .batch-swipe-item .batch-desktop-delete:hover .batch-trash-lid{animation:batch-trash-lid-close .42s cubic-bezier(.2,.8,.2,1) both}
 }
