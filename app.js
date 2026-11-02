@@ -869,10 +869,6 @@ function syncMovementHeaderAlignment() {
   const headerRect = header.getBoundingClientRect();
   const panelRect = panel.getBoundingClientRect();
   const dividerX = panelRect.left - headerRect.left;
-
-  // A margem esquerda do botão começa imediatamente à direita do divisor.
-  back.style.left = `${dividerX}px`;
-
   const viewport = window.visualViewport;
   const visibleLeft = viewport?.offsetLeft || 0;
   const visibleWidth = viewport?.width || document.documentElement.clientWidth;
@@ -881,8 +877,12 @@ function syncMovementHeaderAlignment() {
   header.classList.toggle("keypad-desktop-aligned", desktopLayout);
 
   if (desktopLayout) {
+    // No desktop o CSS calcula o divisor a partir do painel centrado de 660 px.
+    back.style.removeProperty("left");
     title.style.left = `${visibleLeft + visibleWidth / 2 - headerRect.left}px`;
   } else {
+    // No mobile mantemos a posição medida, que acompanha as margens responsivas.
+    back.style.left = `${dividerX}px`;
     title.style.removeProperty("left");
   }
 }
