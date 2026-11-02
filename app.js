@@ -818,8 +818,8 @@ function batchReviewMarkup() {
   const label = isInventoryMode() ? "inventário" : "lote";
   return `<section class="workspace batch-page"><section class="batch-panel batch-review-panel">
     <div class="batch-heading"><p>LEITURA EM PAUSA</p><h2>Rever ${label}</h2><span>${state.batch.items.length} ${state.batch.items.length === 1 ? "referência" : "referências"} · ${batchUnitCount()} ${batchUnitCount() === 1 ? "unidade" : "unidades"}</span></div>
-    <div class="batch-review-list">${[...state.batch.items].reverse().map(item => `<article class="batch-item batch-swipe-item" data-batch-code="${escapeHtml(item.code)}"><div class="batch-swipe-delete" aria-hidden="true"><svg class="batch-trash-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z"/></svg></div><div class="batch-swipe-content">
-      <div class="batch-item-main"><button type="button" class="batch-desktop-delete" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Apagar ${escapeHtml(item.code)}"><svg class="batch-trash-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5-1-1h-5l-1 1H5v2h14V4z"/></svg></button>${item.imageUrl ? `<button type="button" class="batch-item-image batch-image-button" data-action="batch-image" data-batch-code="${escapeHtml(item.code)}" aria-label="Ver imagem de ${escapeHtml(item.code)}"><img src="${escapeHtml(item.imageUrl)}" alt=""></button>` : `<span class="batch-item-image">#</span>`}<span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div></div>
+    <div class="batch-review-list">${[...state.batch.items].reverse().map(item => `<article class="batch-item batch-swipe-item" data-batch-code="${escapeHtml(item.code)}"><div class="batch-swipe-delete" aria-hidden="true"><svg class="batch-trash-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path class="batch-trash-body" d="M6 7h12v12c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V7zm2 2v10h8V9H8z"/><path class="batch-trash-lid" d="m15.5 4-1-1h-5l-1 1H5v2h14V4h-3.5z"/></svg></div><div class="batch-swipe-content">
+      <div class="batch-item-main"><button type="button" class="batch-desktop-delete" data-action="batch-item-remove" data-batch-code="${escapeHtml(item.code)}" aria-label="Apagar ${escapeHtml(item.code)}"><svg class="batch-trash-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path class="batch-trash-body" d="M6 7h12v12c0 1.1-.9 2-2 2H8c-1.1 0-2-.9-2-2V7zm2 2v10h8V9H8z"/><path class="batch-trash-lid" d="m15.5 4-1-1h-5l-1 1H5v2h14V4h-3.5z"/></svg></button>${item.imageUrl ? `<button type="button" class="batch-item-image batch-image-button" data-action="batch-image" data-batch-code="${escapeHtml(item.code)}" aria-label="Ver imagem de ${escapeHtml(item.code)}"><img src="${escapeHtml(item.imageUrl)}" alt=""></button>` : `<span class="batch-item-image">#</span>`}<span><b>${escapeHtml(item.code)} · ${escapeHtml(item.name)}</b><small>${escapeHtml(item.theme || "")} ${item.year ? `· ${escapeHtml(item.year)}` : ""}</small>${state.batch.movementType === "saida" ? `<em>Stock disponível: ${item.locations.reduce((total, location) => total + location.stock, 0)}</em>` : ""}</span><div class="batch-inline-qty"><strong>${item.qty}</strong><div><button type="button" data-action="batch-item-increase" data-batch-code="${escapeHtml(item.code)}">▴</button><button type="button" data-action="batch-item-decrease" data-batch-code="${escapeHtml(item.code)}">▾</button></div></div></div>
       ${batchAllocationMarkup(item)}</div>
     </article>`).join("")}</div>
     <div class="batch-actions batch-review-actions"><button type="button" class="secondary" data-action="batch-resume">RETOMAR</button><button type="button" class="primary" data-action="batch-conditions">CONCLUIR</button></div>
@@ -2407,6 +2407,7 @@ async function openBarcodeScanner(addHistory = true) {
 function resetBatchRowSwipe(row) {
   const content = row?.querySelector(".batch-swipe-content");
   if (!content) return;
+  row.classList.remove("batch-swipe-ready", "batch-swipe-confirmed");
   content.classList.add("batch-swipe-animating");
   content.style.transform = "translate3d(0,0,0)";
   window.setTimeout(() => {
@@ -2426,7 +2427,8 @@ function removeBatchRowAfterSwipe(row) {
     resetBatchRowSwipe(row);
     return;
   }
-  row.classList.add("batch-swipe-removing");
+  row.classList.add("batch-swipe-confirmed");
+  window.setTimeout(() => row.classList.add("batch-swipe-removing"), 120);
   window.setTimeout(() => {
     state.batch.items = state.batch.items.filter(entry => String(entry.code) !== String(code));
     if (!state.batch.items.length) state.batch.phase = "scan";
@@ -2458,6 +2460,7 @@ document.addEventListener("touchmove", event => {
   event.preventDefault();
   mobileSwipeGesture = null;
   const offset = Math.max(-112, Math.min(0, deltaX));
+  gesture.row.classList.toggle("batch-swipe-ready", offset <= -68);
   gesture.content.style.transform = "translate3d(" + offset + "px,0,0)";
 }, { passive: false });
 
@@ -2469,6 +2472,7 @@ document.addEventListener("touchend", event => {
   event.preventDefault();
   const deltaX = touch.clientX - gesture.x;
   if (deltaX <= -68) {
+    gesture.row.classList.add("batch-swipe-ready");
     gesture.content.classList.add("batch-swipe-animating");
     gesture.content.style.transform = "translate3d(-96px,0,0)";
     window.setTimeout(() => removeBatchRowAfterSwipe(gesture.row), 180);
