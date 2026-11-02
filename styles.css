@@ -511,7 +511,7 @@ html,body{height:100%;overflow:hidden}
 /* Swipe-to-delete rows in batch review. */
 .batch-swipe-item{position:relative;overflow:hidden;background:#a33e38;touch-action:pan-y;transition:opacity .22s ease,transform .22s ease}
 .batch-swipe-delete{position:absolute;z-index:0;top:0;right:0;bottom:0;width:96px;display:flex;align-items:center;justify-content:center;background:#a33e38;color:#fff}
-.batch-trash-icon{display:block;width:30px;height:30px;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.batch-desktop-delete .batch-trash-icon{width:24px;height:24px}
+.batch-trash-icon{display:block;width:30px;height:30px}.batch-desktop-delete .batch-trash-icon{width:24px;height:24px}
 .batch-swipe-content{position:relative;z-index:1;background:#fff;will-change:transform}
 .batch-swipe-content.batch-swipe-animating{transition:transform .22s ease}
 .batch-swipe-removing{opacity:0;transform:scale(.98)}
@@ -534,4 +534,9 @@ html,body{height:100%;overflow:hidden}
   .batch-desktop-delete:hover,.batch-desktop-delete:focus-visible{background:#a33e38;color:#fff;outline:0}
   .batch-desktop-delete:focus-visible{box-shadow:0 0 0 3px rgba(163,62,56,.24)}
   
+}
+
+@media(min-width:851px){
+  .batch-swipe-item:hover .batch-desktop-delete{color:#171717}
+  .batch-swipe-item .batch-desktop-delete:hover,.batch-swipe-item .batch-desktop-delete:focus-visible{background:#a33e38;color:#fff}
 }
