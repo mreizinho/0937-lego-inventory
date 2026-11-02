@@ -866,25 +866,25 @@ function syncMovementHeaderAlignment() {
   const title = header?.querySelector("h1");
   if (!header || !panel || !back || !title) return;
 
+  const headerRect = header.getBoundingClientRect();
+  const panelRect = panel.getBoundingClientRect();
+  const dividerX = panelRect.left - headerRect.left;
+
+  // A margem esquerda do botão começa imediatamente à direita do divisor.
+  back.style.left = `${dividerX}px`;
+
   const viewport = window.visualViewport;
   const visibleLeft = viewport?.offsetLeft || 0;
   const visibleWidth = viewport?.width || document.documentElement.clientWidth;
   const desktopPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
   const desktopLayout = desktopPointer && visibleWidth > 850;
   header.classList.toggle("keypad-desktop-aligned", desktopLayout);
-  if (!desktopLayout) {
-    back.style.removeProperty("left");
+
+  if (desktopLayout) {
+    title.style.left = `${visibleLeft + visibleWidth / 2 - headerRect.left}px`;
+  } else {
     title.style.removeProperty("left");
-    return;
   }
-
-  const headerRect = header.getBoundingClientRect();
-  const panelRect = panel.getBoundingClientRect();
-  const dividerX = panelRect.left - headerRect.left;
-  const visibleCenterX = visibleLeft + visibleWidth / 2 - headerRect.left;
-
-  back.style.left = `${dividerX - back.getBoundingClientRect().width / 2}px`;
-  title.style.left = `${visibleCenterX}px`;
 }
 
 function render() {
