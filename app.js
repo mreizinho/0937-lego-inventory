@@ -1019,7 +1019,7 @@ function clearMobileSwipeStyles(element) {
 function adjacentMobileSwipeMode(direction) {
   const currentIndex = MOBILE_SWIPE_MODES.indexOf(state.mode);
   const nextMode = MOBILE_SWIPE_MODES[currentIndex + direction];
-  if (state.mode === "update" && nextMode === "inventario") return undefined;
+  if ((state.mode === "update" && nextMode === "inventario") || (state.mode === "inventario" && nextMode === "update")) return undefined;
   return nextMode;
 }
 
