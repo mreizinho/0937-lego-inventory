@@ -2463,6 +2463,13 @@ document.addEventListener("pointerout", event => {
   document.querySelectorAll(".hamburger-button").forEach(item => { item.dataset.closeHoverReady = "true"; });
 });
 
+document.addEventListener("submit", event => {
+  const form = event.target.closest?.("[data-consultation-form]");
+  if (!form) return;
+  event.preventDefault();
+  document.querySelector('[data-action="consultation-apply"]')?.click();
+});
+
 document.addEventListener("click", async event => {
   const modeButton = event.target.closest("[data-mode]");
   if (modeButton && !modeButton.disabled) {
