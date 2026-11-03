@@ -596,3 +596,7 @@ html,body{height:100%;overflow:hidden}
 
 /* Keep only the filter controls in the floating bar; the open form scrolls below it. */
 .consultation-floating-filters{overflow:visible;max-height:none}
+
+
+/* Unknown EAN uses a blue question badge; stock warnings remain yellow. */
+.camera-scan-question>span{color:#fff;border-color:#0b75ae;background:#0b75ae}
