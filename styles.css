@@ -488,8 +488,8 @@ html,body{height:100%;overflow:hidden}
 
 
 /* Batch scanner stock warning. */
-.camera-scan-warning>span{border-color:#e8a900;background:#fff}
-.camera-scan-warning:not(.camera-scan-question)>span{color:#e8a900;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;font-weight:500}
+.camera-scan-warning>span{border-color:#e32636;background:#fff}
+.camera-scan-warning:not(.camera-scan-question)>span{color:#e32636;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;font-weight:500}
 
 
 /* Align the Comunidade 0937 logo with the forum header. */
