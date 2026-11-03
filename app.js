@@ -2021,7 +2021,7 @@ function showScannerSuccessOverlay(resumeScan, warning = "", warningIcon = "warn
   overlay.setAttribute("aria-label", warning ? `${warning} Tocar para continuar.` : "Leitura aceite. Tocar para continuar.");
   const icon = overlay.querySelector("span");
   const warningIcons = {
-    warning: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path class="camera-warning-triangle" d="M12 2 20.66 17 3.34 17 12 2Z" stroke-linejoin="round"/><path class="camera-warning-mark" d="M12 7.5v5" stroke-linecap="round"/><circle class="camera-warning-mark" cx="12" cy="14.8" r=".65" stroke="none"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path class="camera-warning-triangle" d="M12 2 21.25 18 2.75 18 12 2Z" stroke-linejoin="round"/><path class="camera-warning-mark" d="M12 7.5v5.5" stroke-linecap="round"/><circle class="camera-warning-mark" cx="12" cy="15.8" r=".65" stroke="none"/></svg>',
     question: "?"
   };
   icon.innerHTML = warning ? warningIcons[warningIcon] || warningIcons.warning : "✓";
