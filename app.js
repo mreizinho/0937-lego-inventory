@@ -980,6 +980,13 @@ function setupFloatingConsultationFilters() {
     floatingCounter.removeAttribute('id');
     floatingCounter.dataset.consultationFilterCount = '';
   }
+  floatingSummary.addEventListener('click', event => {
+    if (event.target.closest('button')) return;
+    event.preventDefault();
+    filters.open = true;
+    state.consultation.filtersOpen = true;
+    filters.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   floatingBar.append(floatingSummary);
   content.append(floatingBar);
 
