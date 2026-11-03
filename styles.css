@@ -591,3 +591,11 @@ html,body{height:100%;overflow:hidden}
   .batch-swipe-item .batch-desktop-delete:hover .batch-trash-icon{animation:batch-trash-confirm .42s cubic-bezier(.2,.85,.3,1.2) both}
   .batch-swipe-item .batch-desktop-delete:hover .batch-trash-lid{animation:batch-trash-lid-close .42s cubic-bezier(.2,.8,.2,1) both}
 }
+
+
+/* Repeat the filter action beside the consultation results summary. */
+.consultation-results-heading-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.consultation-results-heading .consultation-results-apply{margin-left:0;flex:0 0 38px}
+@media(max-width:520px){
+  .consultation-results-heading-actions{width:100%;justify-content:space-between}
+}
