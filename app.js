@@ -562,7 +562,7 @@ function consultationFilterMarkup() {
   const filterField = (key, label, placeholder) => `<label><span>${label}</span><span class="consultation-input-shell"><input type="search" enterkeyhint="search"${key === "set" ? ' inputmode="numeric"' : ""} data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" placeholder="${escapeHtml(placeholder)}" autocomplete="off">${consultationClearButton(key, label, filters[key])}</span></label>`;
   const distinctOptions = values => [...new Set(values.map(value => String(value || "").trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right, "pt", { sensitivity: "base", numeric: true }));
   const selectFilter = (key, label, emptyLabel, values) => `<label><span>${label}</span><span class="select-control consultation-select-control"><select data-consultation-filter="${key}" aria-label="Filtrar por ${label.toLocaleLowerCase("pt-PT")}"><option value="">${emptyLabel}</option>${distinctOptions(values).map(value => `<option value="${escapeHtml(value)}"${filters[key] === value ? " selected" : ""}>${escapeHtml(value)}</option>`).join("")}</select><span class="select-arrow" aria-hidden="true">▾</span></span></label>`;
-  const valueControl = (key, label, placeholder, hidden = false) => `<span class="qty-control consultation-value-stepper" data-consultation-value-control="${key}"${hidden ? " hidden" : ""}><input type="number" enterkeyhint="search" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" min="0" step="1" placeholder="${placeholder}" aria-label="${label}"><span class="qty-stepper"><button type="button" data-action="consultation-value-increase" data-consultation-value="${key}" aria-label="Aumentar ${label.toLocaleLowerCase("pt-PT")}">▴</button><button type="button" data-action="consultation-value-decrease" data-consultation-value="${key}" aria-label="Diminuir ${label.toLocaleLowerCase("pt-PT")}">▾</button></span></span>`;
+  const valueControl = (key, label, placeholder, hidden = false) => `<span class="qty-control consultation-value-stepper" data-consultation-value-control="${key}"${hidden ? " hidden" : ""}><input type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="search" data-consultation-filter="${key}" value="${escapeHtml(filters[key])}" placeholder="${placeholder}" aria-label="${label}"><span class="qty-stepper"><button type="button" data-action="consultation-value-increase" data-consultation-value="${key}" aria-label="Aumentar ${label.toLocaleLowerCase("pt-PT")}">▴</button><button type="button" data-action="consultation-value-decrease" data-consultation-value="${key}" aria-label="Diminuir ${label.toLocaleLowerCase("pt-PT")}">▾</button></span></span>`;
   const origins = items.flatMap(item => item.origins);
   const storages = items.flatMap(item => item.locations.map(location => location.storage));
   const activeFilters = consultationFilterCount(filterState.appliedFilters);
@@ -2695,9 +2695,9 @@ document.addEventListener("click", async event => {
     const button = event.target.closest("[data-consultation-value]");
     const key = button?.dataset.consultationValue;
     if (!key || !(key in state.consultation.filters)) return;
-    const current = parseMoneyValue(state.consultation.filters[key]);
+    const current = Number.parseInt(state.consultation.filters[key], 10);
     const next = Math.max(0, (Number.isFinite(current) ? current : 0) + (action === "consultation-value-increase" ? 1 : -1));
-    state.consultation.filters[key] = next.toFixed(2);
+    state.consultation.filters[key] = String(next);
     const input = document.querySelector(`[data-consultation-filter="${key}"]`);
     if (input) input.value = state.consultation.filters[key];
     const count = consultationFilterCount();
@@ -3149,7 +3149,13 @@ document.addEventListener("click", async event => {
 document.addEventListener("input", event => {
   const consultationFilter = event.target.dataset?.consultationFilter;
   if (consultationFilter !== undefined) {
-    state.consultation.filters[consultationFilter] = event.target.value;
+    if (consultationFilter === "valueMin" || consultationFilter === "valueMax") {
+      const integerValue = event.target.value.split(/[.,]/, 1)[0].replace(/\D/g, "");
+      event.target.value = integerValue;
+      state.consultation.filters[consultationFilter] = integerValue;
+    } else {
+      state.consultation.filters[consultationFilter] = event.target.value;
+    }
     if (consultationFilter === "valueOperator") {
       const minimumInput = document.querySelector('[data-consultation-filter="valueMin"]');
       const maximum = document.querySelector('[data-consultation-value-control="valueMax"]');
