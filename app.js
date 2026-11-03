@@ -1506,7 +1506,9 @@ async function processBatchCode(rawCode, fromScanner = false) {
     const available = locations.reduce((total, location) => total + location.stock, 0);
     const nextQuantity = (Number(item?.qty) || 0) + 1;
     if (nextQuantity > available) {
-      if (fromScanner && !available) batchScannerStockWarning = "Set sem stock disponível.";
+      if (fromScanner) batchScannerStockWarning = available
+        ? `Quantidade máxima disponível já lida: ${available} un.`
+        : "Set sem stock disponível.";
       showMovementNotice(available ? `Stock máximo atingido para ${found.code}: ${available} un.` : `Não há stock do conjunto ${found.code}.`, "error");
       if (!fromScanner) render();
       return false;
@@ -2006,7 +2008,7 @@ function dismissScannerSuccessOverlay(resume = true) {
   if (resume) resumeScan?.();
 }
 
-function showScannerSuccessOverlay(resumeScan, warning = "") {
+function showScannerSuccessOverlay(resumeScan, warning = "", warningIcon = "warning") {
   const overlay = document.querySelector(".camera-scan-success");
   if (!overlay) {
     resumeScan();
@@ -2017,7 +2019,11 @@ function showScannerSuccessOverlay(resumeScan, warning = "") {
   overlay.classList.toggle("camera-scan-warning", Boolean(warning));
   overlay.setAttribute("aria-label", warning ? `${warning} Tocar para continuar.` : "Leitura aceite. Tocar para continuar.");
   const icon = overlay.querySelector("span");
-  icon.innerHTML = warning ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z" stroke-linejoin="round"/><path d="M12 9v5" stroke-linecap="round"/><circle cx="12" cy="17.5" r=".6" fill="currentColor" stroke="none"/></svg>' : "✓";
+  const warningIcons = {
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z" stroke-linejoin="round"/><path d="M12 9v5" stroke-linecap="round"/><circle cx="12" cy="17.5" r=".6" fill="currentColor" stroke="none"/></svg>',
+    question: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 0 1 4.8 1c0 2-2.5 2.2-2.5 4" stroke-linecap="round"/><circle cx="12" cy="17.2" r=".7" fill="currentColor" stroke="none"/></svg>'
+  };
+  icon.innerHTML = warning ? warningIcons[warningIcon] || warningIcons.warning : "✓";
   overlay.removeAttribute("hidden");
   scannerSuccessTimer = window.setTimeout(() => dismissScannerSuccessOverlay(), SCANNER_SUCCESS_DURATION_MS);
 }
@@ -2381,6 +2387,20 @@ async function openBarcodeScanner(addHistory = true) {
                 barcodeScanTimer = window.setTimeout(scanFrame, 140);
                 return;
               }
+              if (state.mode === "saida") {
+                try {
+                  const locations = await getLocationStock(found.code);
+                  const available = locations.reduce((total, location) => total + location.stock, 0);
+                  if (available <= 0) {
+                    const warning = "Set sem stock disponível.";
+                    updateScannerStatus(`${found.code}: ${warning}`);
+                    showScannerSuccessOverlay(() => {
+                      if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
+                    }, warning);
+                    return;
+                  }
+                } catch { /* O fluxo normal apresentará o erro detalhado após fechar a câmara. */ }
+              }
               playScannerConfirmationBeep();
               state.query = ean;
               state.photoMetaVisible = true;
@@ -2393,7 +2413,12 @@ async function openBarcodeScanner(addHistory = true) {
             }
             if (lastUnknownEan !== ean) {
               lastUnknownEan = ean;
-              updateScannerStatus(`EAN ${ean} não encontrado no catálogo. Continue a apontar para outro código.`);
+              const warning = `EAN ${ean} não encontrado no catálogo.`;
+              updateScannerStatus(`${warning} Continue a apontar para outro código.`);
+              showScannerSuccessOverlay(() => {
+                if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
+              }, warning, "question");
+              return;
             }
           }
         }
