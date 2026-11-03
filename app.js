@@ -604,7 +604,7 @@ function consultationMarkup() {
   return `<section class="workspace consultation-page"><section class="batch-panel consultation-panel">
     ${heading}
     ${consultationFilterMarkup()}
-    <div class="consultation-results-heading"><h3>Resultados</h3><span>${results.length} ${results.length === 1 ? "referência" : "referências"} · ${units.toLocaleString("pt-PT")} ${units === 1 ? "unidade" : "unidades"}</span></div>
+    <div class="consultation-results-heading"><h3>Resultados</h3><div class="consultation-results-heading-actions"><span>${results.length} ${results.length === 1 ? "referência" : "referências"} · ${units.toLocaleString("pt-PT")} ${units === 1 ? "unidade" : "unidades"}</span><button type="button" class="consultation-summary-apply consultation-results-apply" data-action="consultation-apply" aria-label="Aplicar filtros" title="Aplicar filtros"><img src="public/options/consultar.svg" alt="" width="24" height="24"></button></div></div>
     <div class="consultation-results">${resultList}</div>
   </section></section>`;
 }
