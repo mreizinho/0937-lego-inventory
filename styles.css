@@ -592,3 +592,7 @@ html,body{height:100%;overflow:hidden}
   .batch-swipe-item .batch-desktop-delete:hover .batch-trash-lid{animation:batch-trash-lid-close .42s cubic-bezier(.2,.8,.2,1) both}
 }
 
+
+
+/* Keep only the filter controls in the floating bar; the open form scrolls below it. */
+.consultation-floating-filters{overflow:visible;max-height:none}
