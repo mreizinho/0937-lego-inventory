@@ -414,7 +414,7 @@ function optionsMarkup() {
         ${optionCard("entrada", "Entrada", "Registar set recebido", "entrada")}
         ${optionCard("saida", "Saída", "Registar set enviado", "saida")}
         ${optionCard("consulta", "Consultar", "Ver detalhes e stock", "consultar")}
-        ${optionCard("lote", "Modo Lote", "Scan múltiplo rápido", "lote")}
+        ${optionCard("lote", "Modo Lote", "Scan múltiplos sets", "lote")}
       </div>
     </div>
     </article>
