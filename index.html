@@ -11,14 +11,26 @@
     <meta name="google-site-verification" content="Svk0UNpccqtiTkhVs_fCUrZh5lEyE-fJDAf7TRGLwjk">
     <title>Inventário LEGO · Comunidade 0937</title>
     <meta name="description" content="Gestão de entradas, saídas e catálogo de conjuntos LEGO da Comunidade 0937.">
-    <link id="theme-favicon" rel="icon" href="public/favicon-light.svg?v=20261103-theme-switch-light" sizes="any" type="image/svg+xml">
     <script>
       (() => {
         const preference = window.matchMedia("(prefers-color-scheme: dark)");
-        const favicon = document.querySelector("#theme-favicon");
+        const android = /Android/i.test(navigator.userAgent);
+        const extension = android ? "png" : "svg";
+        const type = android ? "image/png" : "image/svg+xml";
+        const links = ["icon", "shortcut icon"].map(rel => {
+          const link = document.createElement("link");
+          link.rel = rel;
+          link.type = type;
+          link.sizes = android ? "32x32" : "any";
+          document.head.appendChild(link);
+          return link;
+        });
         const updateFavicon = event => {
           const dark = event.matches;
-          favicon.href = `public/favicon-${dark ? "dark" : "light"}.svg?v=20261103-theme-switch-${dark ? "dark" : "light"}`;
+          const theme = dark ? "dark" : "light";
+          links.forEach(link => {
+            link.href = `public/favicon-${theme}.${extension}?v=20261103-android-fallback-${theme}`;
+          });
         };
         updateFavicon(preference);
         preference.addEventListener?.("change", updateFavicon);
