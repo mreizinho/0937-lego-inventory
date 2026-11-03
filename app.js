@@ -2017,6 +2017,7 @@ function showScannerSuccessOverlay(resumeScan, warning = "", warningIcon = "warn
   if (scannerSuccessTimer) window.clearTimeout(scannerSuccessTimer);
   scannerSuccessResume = resumeScan;
   overlay.classList.toggle("camera-scan-warning", Boolean(warning));
+  overlay.classList.toggle("camera-scan-question", Boolean(warning) && warningIcon === "question");
   overlay.setAttribute("aria-label", warning ? `${warning} Tocar para continuar.` : "Leitura aceite. Tocar para continuar.");
   const icon = overlay.querySelector("span");
   const warningIcons = {
