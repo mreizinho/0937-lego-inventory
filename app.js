@@ -943,59 +943,61 @@ let consultationFiltersObserver = null;
 let consultationFiltersResizeObserver = null;
 
 function alignFloatingConsultationFilters() {
-  const panel=document.querySelector('.app-content .consultation-panel');
-  const filters=panel?.querySelector('.consultation-filters');
-  if(!panel||!filters)return;
-  const content=document.querySelector(".app-content");
-  if(filters.classList.contains("consultation-floating-filters")&&content){filters.style.top=`${content.getBoundingClientRect().top}px`;filters.style.maxHeight=`${content.clientHeight}px`;}
-  if(window.innerWidth<=850){filters.style.removeProperty("--filter-content-left");filters.style.removeProperty("--filter-content-right");return;}
-  const bounds=panel.getBoundingClientRect(),padding=window.getComputedStyle(panel);
-  filters.style.setProperty('--filter-content-left',`${bounds.left+(parseFloat(padding.paddingLeft)||0)}px`);
-  filters.style.setProperty('--filter-content-right',`${Math.max(0,window.innerWidth-bounds.right)+(parseFloat(padding.paddingRight)||0)}px`);
+  const panel = document.querySelector('.app-content .consultation-panel');
+  const floatingBar = document.querySelector('.app-content .consultation-floating-filters');
+  const content = document.querySelector(".app-content");
+  if (!panel || !floatingBar || !content) return;
+  floatingBar.style.top = `${content.getBoundingClientRect().top}px`;
+  if (window.innerWidth <= 850) {
+    floatingBar.style.removeProperty("--filter-content-left");
+    floatingBar.style.removeProperty("--filter-content-right");
+    return;
+  }
+  const bounds = panel.getBoundingClientRect();
+  const padding = window.getComputedStyle(panel);
+  floatingBar.style.setProperty('--filter-content-left', `${bounds.left + (parseFloat(padding.paddingLeft) || 0)}px`);
+  floatingBar.style.setProperty('--filter-content-right', `${Math.max(0, window.innerWidth - bounds.right) + (parseFloat(padding.paddingRight) || 0)}px`);
 }
-window.addEventListener('resize',alignFloatingConsultationFilters);
+window.addEventListener('resize', alignFloatingConsultationFilters);
 
 function setupFloatingConsultationFilters() {
   consultationFiltersObserver?.disconnect();
   consultationFiltersResizeObserver?.disconnect();
+  document.querySelector('.app-content .consultation-floating-filters')?.remove();
   if (state.mode !== 'consulta') return;
   const content = document.querySelector('.app-content');
   const filters = content?.querySelector('.consultation-filters');
   const summary = filters?.querySelector('summary');
-  if (!summary) return;
-  const anchor = document.createElement('div');
-  anchor.className = 'consultation-filters-anchor';
-  filters.before(anchor);
-  anchor.append(filters);
-  const marker = document.createElement('span');
-  marker.className = 'consultation-filters-marker';
-  const positionMarker = () => {
-    marker.style.top = `${summary.offsetHeight}px`;
-  };
-  marker.style.bottom = 'auto';
-  marker.style.height = '1px';
-  positionMarker();
-  anchor.prepend(marker);
-  let floating = false;
+  if (!content || !summary) return;
+
+  const floatingBar = document.createElement('div');
+  floatingBar.className = 'consultation-filters consultation-floating-filters';
+  floatingBar.hidden = true;
+  const floatingSummary = summary.cloneNode(true);
+  floatingSummary.querySelector('#consultation-summary-clear')?.removeAttribute('id');
+  const floatingCounter = floatingSummary.querySelector('#consultation-filter-count');
+  if (floatingCounter) {
+    floatingCounter.removeAttribute('id');
+    floatingCounter.dataset.consultationFilterCount = '';
+  }
+  floatingBar.append(floatingSummary);
+  content.append(floatingBar);
+
   consultationFiltersObserver = new IntersectionObserver(entries => {
     const entry = entries[0];
-    const shouldFloat = !entry.isIntersecting && entry.boundingClientRect.bottom <= entry.rootBounds.top;
-    if (shouldFloat === floating) return;
-    floating = shouldFloat;
-    if (floating) {
-      anchor.style.height = `${anchor.getBoundingClientRect().height}px`;
-      filters.style.top = `${content.getBoundingClientRect().top}px`;
-      filters.style.maxHeight = `${content.clientHeight}px`;
-    } else {
-      anchor.style.height = '';
-      filters.style.top = '';
-      filters.style.maxHeight = '';
-    }
-    filters.classList.toggle('consultation-floating-filters', floating);
+    floatingBar.hidden = entry.isIntersecting || entry.boundingClientRect.bottom > entry.rootBounds.top;
+    if (!floatingBar.hidden) alignFloatingConsultationFilters();
   }, { root: content, threshold: 0 });
-  consultationFiltersObserver.observe(marker);
+  consultationFiltersObserver.observe(summary);
   alignFloatingConsultationFilters();
-  if(window.ResizeObserver){consultationFiltersResizeObserver=new window.ResizeObserver(()=>{positionMarker();alignFloatingConsultationFilters();});consultationFiltersResizeObserver.observe(content);consultationFiltersResizeObserver.observe(summary);const header=document.querySelector(".masthead");if(header)consultationFiltersResizeObserver.observe(header);}
+
+  if (window.ResizeObserver) {
+    consultationFiltersResizeObserver = new window.ResizeObserver(alignFloatingConsultationFilters);
+    consultationFiltersResizeObserver.observe(content);
+    consultationFiltersResizeObserver.observe(summary);
+    const header = document.querySelector(".masthead");
+    if (header) consultationFiltersResizeObserver.observe(header);
+  }
 }
 
 
@@ -2703,8 +2705,9 @@ document.addEventListener("click", async event => {
     const input = document.querySelector(`[data-consultation-filter="${key}"]`);
     if (input) input.value = state.consultation.filters[key];
     const count = consultationFilterCount();
-    const counter = document.querySelector("#consultation-filter-count");
-    if (counter) counter.textContent = `${count} ${count === 1 ? "ativo" : "ativos"}`;
+    document.querySelectorAll("#consultation-filter-count, [data-consultation-filter-count]").forEach(counter => {
+      counter.textContent = `${count} ${count === 1 ? "ativo" : "ativos"}`;
+    });
     return;
   }
   if (action === "consultation-image") {
@@ -3170,8 +3173,9 @@ document.addEventListener("input", event => {
       }
     }
     const count = consultationFilterCount();
-    const counter = document.querySelector("#consultation-filter-count");
-    if (counter) counter.textContent = `${count} ${count === 1 ? "ativo" : "ativos"}`;
+    document.querySelectorAll("#consultation-filter-count, [data-consultation-filter-count]").forEach(counter => {
+      counter.textContent = `${count} ${count === 1 ? "ativo" : "ativos"}`;
+    });
     return;
   }
   if (event.target.dataset?.inventorySheetName !== undefined) {
