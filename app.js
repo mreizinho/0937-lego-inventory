@@ -604,7 +604,7 @@ function consultationMarkup() {
   return `<section class="workspace consultation-page"><section class="batch-panel consultation-panel">
     ${heading}
     ${consultationFilterMarkup()}
-    <div class="consultation-results-heading"><h3>Resultados</h3><div class="consultation-results-heading-actions"><span>${results.length} ${results.length === 1 ? "referência" : "referências"} · ${units.toLocaleString("pt-PT")} ${units === 1 ? "unidade" : "unidades"}</span><button type="button" class="consultation-summary-apply consultation-results-apply" data-action="consultation-apply" aria-label="Aplicar filtros" title="Aplicar filtros"><img src="public/options/consultar.svg" alt="" width="24" height="24"></button></div></div>
+    <div class="consultation-results-heading"><h3>Resultados</h3><span>${results.length} ${results.length === 1 ? "referência" : "referências"} · ${units.toLocaleString("pt-PT")} ${units === 1 ? "unidade" : "unidades"}</span></div>
     <div class="consultation-results">${resultList}</div>
   </section></section>`;
 }
@@ -969,9 +969,12 @@ function setupFloatingConsultationFilters() {
   anchor.append(filters);
   const marker = document.createElement('span');
   marker.className = 'consultation-filters-marker';
-  marker.style.top = 'auto';
-  marker.style.bottom = '0';
+  const positionMarker = () => {
+    marker.style.top = `${summary.offsetHeight}px`;
+  };
+  marker.style.bottom = 'auto';
   marker.style.height = '1px';
+  positionMarker();
   anchor.prepend(marker);
   let floating = false;
   consultationFiltersObserver = new IntersectionObserver(entries => {
@@ -981,7 +984,6 @@ function setupFloatingConsultationFilters() {
     floating = shouldFloat;
     if (floating) {
       anchor.style.height = `${anchor.getBoundingClientRect().height}px`;
-      filters.open = false;
       filters.style.top = `${content.getBoundingClientRect().top}px`;
       filters.style.maxHeight = `${content.clientHeight}px`;
     } else {
@@ -993,7 +995,7 @@ function setupFloatingConsultationFilters() {
   }, { root: content, threshold: 0 });
   consultationFiltersObserver.observe(marker);
   alignFloatingConsultationFilters();
-  if(window.ResizeObserver){consultationFiltersResizeObserver=new window.ResizeObserver(alignFloatingConsultationFilters);consultationFiltersResizeObserver.observe(content);const header=document.querySelector(".masthead");if(header)consultationFiltersResizeObserver.observe(header);}
+  if(window.ResizeObserver){consultationFiltersResizeObserver=new window.ResizeObserver(()=>{positionMarker();alignFloatingConsultationFilters();});consultationFiltersResizeObserver.observe(content);consultationFiltersResizeObserver.observe(summary);const header=document.querySelector(".masthead");if(header)consultationFiltersResizeObserver.observe(header);}
 }
 
 
