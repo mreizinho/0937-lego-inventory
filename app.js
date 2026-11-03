@@ -2021,8 +2021,8 @@ function showScannerSuccessOverlay(resumeScan, warning = "", warningIcon = "warn
   overlay.setAttribute("aria-label", warning ? `${warning} Tocar para continuar.` : "Leitura aceite. Tocar para continuar.");
   const icon = overlay.querySelector("span");
   const warningIcons = {
-    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z" stroke-linejoin="round"/><path d="M12 9v5" stroke-linecap="round"/><circle cx="12" cy="17.5" r=".6" fill="currentColor" stroke="none"/></svg>',
-    question: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 0 1 4.8 1c0 2-2.5 2.2-2.5 4" stroke-linecap="round"/><circle cx="12" cy="17.2" r=".7" fill="currentColor" stroke="none"/></svg>'
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path class="camera-warning-triangle" d="M12 3 2 21h20L12 3Z" stroke-linejoin="round"/><path class="camera-warning-mark" d="M12 9v5" stroke-linecap="round"/><circle class="camera-warning-mark" cx="12" cy="17.5" r=".6" stroke="none"/></svg>',
+    question: "?"
   };
   icon.innerHTML = warning ? warningIcons[warningIcon] || warningIcons.warning : "✓";
   overlay.removeAttribute("hidden");

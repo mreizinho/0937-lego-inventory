@@ -488,8 +488,10 @@ html,body{height:100%;overflow:hidden}
 
 
 /* Batch scanner stock warning. */
-.camera-scan-warning>span{color:#b77500;border-color:#e8a900;background:#fff7dc}
+.camera-scan-warning>span{border-color:#e8a900;background:#fff}
 .camera-scan-warning>span svg{display:block;width:62px;height:62px;transform:translateY(-4px)}
+.camera-warning-triangle{stroke:#e32636}
+.camera-warning-mark{stroke:#111;fill:#111}
 
 
 /* Align the Comunidade 0937 logo with the forum header. */
@@ -599,4 +601,4 @@ html,body{height:100%;overflow:hidden}
 
 
 /* Unknown EAN uses a blue question badge; stock warnings remain yellow. */
-.camera-scan-question>span{color:#fff;border-color:#0b75ae;background:#0b75ae}
+.camera-scan-question>span{color:#0b75ae;border-color:#0b75ae;background:#fff}
