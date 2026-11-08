@@ -491,7 +491,7 @@ function scannerMarkup() {
     <div class="camera-scanner-panel">
       <header><strong id="camera-scanner-title">LER CÓDIGO DE BARRAS</strong><button type="button" data-action="close-scanner" aria-label="Fechar leitor">${icons.close}</button></header>
       <div class="camera-preview" data-action="focus-camera" role="button" tabindex="0" aria-label="Toque para focar a câmara"><video id="barcode-camera" autoplay muted playsinline></video><span class="camera-guide" aria-hidden="true"></span><span class="camera-focus-point" aria-hidden="true"></span><div class="camera-controls" aria-label="Controlos da câmara"><button type="button" data-action="switch-scanner-camera" hidden>CÂMARA <span data-camera-position></span></button><button type="button" data-action="cycle-scanner-zoom" hidden>ZOOM <span data-camera-zoom></span></button><button type="button" data-action="toggle-scanner-torch" aria-pressed="false" hidden>LUZ</button></div><button type="button" class="camera-scan-success" data-action="dismiss-scan-success" aria-label="Leitura aceite. Tocar para continuar." hidden><span aria-hidden="true">✓</span></button></div>
-      <p id="camera-scanner-status" role="status" aria-live="polite">${escapeHtml(state.scannerStatus)}</p>
+      <div id="camera-scanner-status" class="camera-notice info" role="status" aria-live="polite" aria-atomic="true">${scannerNoticeMarkup(state.scannerStatus)}</div>
     </div>
   </section>`;
 }
@@ -1954,10 +1954,24 @@ async function lookup() {
   render();
 }
 
-function updateScannerStatus(message) {
+function scannerNoticeMarkup(message, title = "Leitor de códigos", type = "info") {
+  const iconType = type === "success" ? "" : type === "warning" ? "camera-scan-warning" : "camera-scan-question";
+  return `<span class="camera-notice-icon camera-scan-success ${iconType}" aria-hidden="true"><span>${scannerResultIcon(type)}</span></span><span class="camera-notice-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(message)}</span></span>`;
+}
+
+function scannerResultIcon(type) {
+  if (type === "success") return "✓";
+  if (type === "info") return "?";
+  return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path class="camera-warning-triangle" d="M12 3 2 21h20L12 3Z" stroke-linejoin="round"/><path class="camera-warning-mark" d="M12 9v5" stroke-linecap="round"/><circle class="camera-warning-mark" cx="12" cy="17.5" r=".6" stroke="none"/></svg>';
+}
+
+function updateScannerStatus(message, title = "Leitor de códigos", type = "info") {
   state.scannerStatus = message;
   const status = document.querySelector("#camera-scanner-status");
-  if (status) status.textContent = message;
+  if (status) {
+    status.className = `camera-notice ${type}`;
+    status.innerHTML = scannerNoticeMarkup(message, title, type);
+  }
 }
 
 function prepareScannerConfirmationSound() {
@@ -2020,11 +2034,7 @@ function showScannerSuccessOverlay(resumeScan, warning = "", warningIcon = "warn
   overlay.classList.toggle("camera-scan-question", Boolean(warning) && warningIcon === "question");
   overlay.setAttribute("aria-label", warning ? `${warning} Tocar para continuar.` : "Leitura aceite. Tocar para continuar.");
   const icon = overlay.querySelector("span");
-  const warningIcons = {
-    warning: "!",
-    question: "?"
-  };
-  icon.innerHTML = warning ? warningIcons[warningIcon] || warningIcons.warning : "✓";
+  icon.innerHTML = scannerResultIcon(warning ? warningIcon === "question" ? "info" : "warning" : "success");
   overlay.removeAttribute("hidden");
   scannerSuccessTimer = window.setTimeout(() => dismissScannerSuccessOverlay(), SCANNER_SUCCESS_DURATION_MS);
 }
@@ -2294,12 +2304,12 @@ async function openBarcodeScanner(addHistory = true) {
   document.querySelector("#app")?.insertAdjacentHTML("beforeend", scannerMarkup());
 
   if (!navigator.mediaDevices?.getUserMedia) {
-    updateScannerStatus("Este navegador não permite aceder à câmara.");
+    updateScannerStatus("Este navegador não permite aceder à câmara.", "Câmara indisponível", "warning");
     return;
   }
   const quaggaAvailable = Boolean(window.Quagga?.decodeSingle);
   if (!("BarcodeDetector" in window) && !quaggaAvailable) {
-    updateScannerStatus("Este navegador não suporta a leitura automática de códigos de barras.");
+    updateScannerStatus("Este navegador não suporta a leitura automática de códigos de barras.", "Leitura indisponível", "warning");
     return;
   }
 
@@ -2366,8 +2376,8 @@ async function openBarcodeScanner(addHistory = true) {
                   lastBatchEanAt = acceptedAt;
                   const added = await addCodeToBatch(ean, true);
                   updateScannerStatus(added
-                    ? `${found.code} adicionado · ${batchUnitCount()} un. na leitura. Aponte para o próximo código.`
-                    : `Não foi possível adicionar ${found.code}. Aponte para outro código.`);
+                    ? `${found.code} · ${batchUnitCount()} un. na leitura.`
+                    : `${found.code} · Aponte para outro código.`, added ? "Adicionado" : "Não foi possível adicionar", added ? "success" : "warning");
                   if (added) {
                     playScannerConfirmationBeep();
                     if (navigator.vibrate) navigator.vibrate(45);
@@ -2378,7 +2388,7 @@ async function openBarcodeScanner(addHistory = true) {
                   }
                   if (!added && batchScannerStockWarning) {
                     const warning = batchScannerStockWarning;
-                    updateScannerStatus(`${found.code}: ${warning}`);
+                    updateScannerStatus(`${found.code}: ${warning}`, warning.includes("máxima") ? "Stock máximo atingido" : "Sem stock", "warning");
                     showScannerSuccessOverlay(() => {
                       if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
                     }, warning);
@@ -2394,7 +2404,7 @@ async function openBarcodeScanner(addHistory = true) {
                   const available = locations.reduce((total, location) => total + location.stock, 0);
                   if (available <= 0) {
                     const warning = "Set sem stock disponível.";
-                    updateScannerStatus(`${found.code}: ${warning}`);
+                    updateScannerStatus(`${found.code}: ${warning}`, "Sem stock", "warning");
                     showScannerSuccessOverlay(() => {
                       if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
                     }, warning);
@@ -2415,7 +2425,7 @@ async function openBarcodeScanner(addHistory = true) {
             if (lastUnknownEan !== ean) {
               lastUnknownEan = ean;
               const warning = `EAN ${ean} não encontrado no catálogo.`;
-              updateScannerStatus(`${warning} Continue a apontar para outro código.`);
+              updateScannerStatus(`EAN ${ean}`, "Código não encontrado", "info");
               showScannerSuccessOverlay(() => {
                 if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
               }, warning, "question");
@@ -2424,7 +2434,7 @@ async function openBarcodeScanner(addHistory = true) {
           }
         }
       } catch {
-        updateScannerStatus("Não foi possível ler este código. Tente aproximar ou melhorar a iluminação.");
+        updateScannerStatus("Tente aproximar ou melhorar a iluminação.", "Não foi possível ler o código", "warning");
       }
       barcodeScanTimer = window.setTimeout(scanFrame, 140);
     };
@@ -2437,7 +2447,7 @@ async function openBarcodeScanner(addHistory = true) {
       NotReadableError: "A câmara está a ser utilizada por outra aplicação.",
       EAN_NOT_SUPPORTED: "Este navegador não suporta a leitura de códigos EAN.",
     };
-    updateScannerStatus(messages[error.name] || messages[error.message] || "Não foi possível iniciar a câmara.");
+    updateScannerStatus(messages[error.name] || messages[error.message] || "Não foi possível iniciar a câmara.", "Câmara indisponível", "warning");
   }
 }
 

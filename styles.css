@@ -142,7 +142,7 @@ html,body{height:100%;overflow:hidden}
 @media(max-width:850px){.options-panel{padding-top:16px}.options-prompt{font-size:14px}}
 .header-search-button{display:none}
 .camera-scanner{position:fixed;inset:0;z-index:120;display:grid;place-items:center;background:rgba(12,14,15,.88)}
-.camera-scanner-panel{width:min(560px,100%);height:min(820px,100dvh);display:flex;flex-direction:column;overflow:hidden;background:#111;color:#fff}
+.camera-scanner-panel{position:relative;width:min(560px,100%);height:min(820px,100dvh);display:flex;flex-direction:column;overflow:hidden;background:#111;color:#fff}
 .camera-scanner-panel>header{height:58px;flex:0 0 58px;display:grid;grid-template-columns:48px 1fr 48px;align-items:center;background:#444647}
 .camera-scanner-panel>header strong{grid-column:2;text-align:center;font-size:16px;letter-spacing:.8px}
 .camera-scanner-panel>header button{grid-column:3;width:48px;height:48px;padding:0;border:0;background:transparent;color:#fff;display:grid;place-items:center;cursor:pointer}
@@ -600,3 +600,17 @@ html,body{height:100%;overflow:hidden}
 
 /* Unknown EAN uses a blue question badge; stock warnings remain yellow. */
 .camera-scan-question>span{color:#0b75ae;border-color:#0b75ae;background:#fff;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;font-weight:500}
+
+/* Floating scanner feedback, above the system navigation safe area. */
+.camera-notice{--notice-color:#0b75ae;position:absolute;z-index:6;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:min(420px,calc(100% - 40px));display:flex;align-items:center;gap:14px;padding:14px 18px;border-left:5px solid var(--notice-color);border-radius:14px;background:#161819;color:#fff;box-shadow:0 6px 20px #0005;pointer-events:none}
+.camera-notice.success{--notice-color:#0ebc5f}.camera-notice.warning{--notice-color:#e3483d}
+.camera-notice-copy{min-width:0;display:flex;flex-direction:column;gap:4px;text-align:left}
+.camera-notice-copy strong{font-size:16px;line-height:1.2;font-weight:700}
+.camera-notice-copy>span{font-size:13px;line-height:1.4;color:#e0e2e3;overflow-wrap:anywhere}
+.camera-notice .camera-notice-icon{position:static;inset:auto;flex:0 0 36px;width:36px;height:36px;background:transparent;pointer-events:none}
+.camera-notice-icon>span{width:36px;height:36px;border-width:2px;box-shadow:none;font-size:24px;animation:none}
+.camera-notice-icon>span svg{width:24px;height:24px}
+.camera-scan-warning>span svg{display:block;width:62px;height:62px}
+.camera-warning-triangle{stroke:#e32636}
+.camera-warning-mark{stroke:#111;fill:#111}
+.camera-notice-icon.camera-scan-warning>span svg{width:24px;height:24px}
