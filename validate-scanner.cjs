@@ -10,12 +10,17 @@ vm.createContext(context);
 vm.runInContext(source.slice(start, end), context);
 assert.equal(context.scannerResultIcon('warning'), '!');
 assert.equal(context.scannerResultIcon('info'), '?');
-for (const [type, title, glyph] of [['success', 'Adicionado', 'M-25 4 -8 25 28-32'], ['warning', 'Sem stock', '!'], ['info', 'Código não encontrado', '?']]) {
-  context.updateScannerStatus('71487 <teste>', title, type);
+for (const [type, title] of [['success', 'Adicionado'], ['warning', 'Sem stock'], ['info', 'Código não encontrado']]) {
+  context.updateScannerStatus('1 un. na leitura.', title, type, '71487 · Set <teste>');
   assert.equal(status.className, `camera-notice ${type}`);
-  assert(status.innerHTML.includes(glyph));
+  assert(!status.innerHTML.includes('camera-notice-icon'));
+  assert(!status.innerHTML.includes('<svg'));
+  assert(status.innerHTML.indexOf(title) < status.innerHTML.indexOf('71487'));
+  assert(status.innerHTML.indexOf('71487') < status.innerHTML.indexOf('1 un. na leitura.'));
   assert(status.innerHTML.includes(title));
   assert(status.innerHTML.includes('&lt;teste>'));
-  assert.equal(context.state.scannerStatus, '71487 <teste>');
+  assert.equal(context.state.scannerStatus, '1 un. na leitura.');
 }
-console.log('PASS: three scanner states, existing icons, escaped text and status updates.');
+const instruction = context.scannerNoticeMarkup('A preparar a câmara…');
+assert(!instruction.includes('camera-notice-set'));
+console.log('PASS: three toast states, message/set/status ordering, no toast icons, escaped text and camera instructions.');

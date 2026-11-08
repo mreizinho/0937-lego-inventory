@@ -1954,9 +1954,8 @@ async function lookup() {
   render();
 }
 
-function scannerNoticeMarkup(message, title = "Leitor de códigos", type = "info") {
-  const iconType = type === "success" ? "" : type === "warning" ? "camera-scan-warning" : "camera-scan-question";
-  return `<span class="camera-notice-icon camera-scan-success ${iconType}" aria-hidden="true"><span>${scannerResultIcon(type)}</span></span><span class="camera-notice-copy"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(message)}</span></span>`;
+function scannerNoticeMarkup(message, title = "Leitor de códigos", item = "") {
+  return `<span class="camera-notice-copy"><strong>${escapeHtml(title)}</strong>${item ? `<span class="camera-notice-set">${escapeHtml(item)}</span>` : ""}<span class="camera-notice-detail">${escapeHtml(message)}</span></span>`;
 }
 
 function scannerResultIcon(type) {
@@ -1965,12 +1964,12 @@ function scannerResultIcon(type) {
   return "!";
 }
 
-function updateScannerStatus(message, title = "Leitor de códigos", type = "info") {
+function updateScannerStatus(message, title = "Leitor de códigos", type = "info", item = "") {
   state.scannerStatus = message;
   const status = document.querySelector("#camera-scanner-status");
   if (status) {
     status.className = `camera-notice ${type}`;
-    status.innerHTML = scannerNoticeMarkup(message, title, type);
+    status.innerHTML = scannerNoticeMarkup(message, title, item);
   }
 }
 
@@ -2376,8 +2375,8 @@ async function openBarcodeScanner(addHistory = true) {
                   lastBatchEanAt = acceptedAt;
                   const added = await addCodeToBatch(ean, true);
                   updateScannerStatus(added
-                    ? `${found.code} · ${batchUnitCount()} un. na leitura.`
-                    : `${found.code} · Aponte para outro código.`, added ? "Adicionado" : "Não foi possível adicionar", added ? "success" : "warning");
+                    ? `${batchUnitCount()} un. na leitura.`
+                    : "Aponte para outro código.", added ? "Adicionado" : "Não foi possível adicionar", added ? "success" : "warning", `${found.code} · ${found.name}`);
                   if (added) {
                     playScannerConfirmationBeep();
                     if (navigator.vibrate) navigator.vibrate(45);
@@ -2388,7 +2387,7 @@ async function openBarcodeScanner(addHistory = true) {
                   }
                   if (!added && batchScannerStockWarning) {
                     const warning = batchScannerStockWarning;
-                    updateScannerStatus(`${found.code}: ${warning}`, warning.includes("máxima") ? "Stock máximo atingido" : "Sem stock", "warning");
+                    updateScannerStatus(warning, warning.includes("máxima") ? "Stock máximo atingido" : "Sem stock", "warning", `${found.code} · ${found.name}`);
                     showScannerSuccessOverlay(() => {
                       if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
                     }, warning);
@@ -2404,7 +2403,7 @@ async function openBarcodeScanner(addHistory = true) {
                   const available = locations.reduce((total, location) => total + location.stock, 0);
                   if (available <= 0) {
                     const warning = "Set sem stock disponível.";
-                    updateScannerStatus(`${found.code}: ${warning}`, "Sem stock", "warning");
+                    updateScannerStatus("Sem unidades disponíveis.", "Sem stock", "warning", `${found.code} · ${found.name}`);
                     showScannerSuccessOverlay(() => {
                       if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
                     }, warning);
@@ -2425,7 +2424,7 @@ async function openBarcodeScanner(addHistory = true) {
             if (lastUnknownEan !== ean) {
               lastUnknownEan = ean;
               const warning = `EAN ${ean} não encontrado no catálogo.`;
-              updateScannerStatus(`EAN ${ean}`, "Código não encontrado", "info");
+              updateScannerStatus("Não encontrado no catálogo.", "Código não encontrado", "info", `EAN ${ean}`);
               showScannerSuccessOverlay(() => {
                 if (state.scannerOpen && session === barcodeSession) barcodeScanTimer = window.setTimeout(scanFrame, 140);
               }, warning, "question");
