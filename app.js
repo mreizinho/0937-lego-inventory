@@ -1960,9 +1960,9 @@ function scannerNoticeMarkup(message, title = "Leitor de códigos", type = "info
 }
 
 function scannerResultIcon(type) {
-  if (type === "success") return "✓";
+  if (type === "success") return '<svg viewBox="-40 -40 80 80" aria-hidden="true"><path d="M-25 4 -8 25 28-32" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   if (type === "info") return "?";
-  return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><path class="camera-warning-triangle" d="M12 3 2 21h20L12 3Z" stroke-linejoin="round"/><path class="camera-warning-mark" d="M12 9v5" stroke-linecap="round"/><circle class="camera-warning-mark" cx="12" cy="17.5" r=".6" stroke="none"/></svg>';
+  return "!";
 }
 
 function updateScannerStatus(message, title = "Leitor de códigos", type = "info") {

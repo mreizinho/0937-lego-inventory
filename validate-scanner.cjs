@@ -8,7 +8,9 @@ const status = {};
 const context = { state: {}, document: { querySelector: () => status }, escapeHtml: value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;') };
 vm.createContext(context);
 vm.runInContext(source.slice(start, end), context);
-for (const [type, title, glyph] of [['success', 'Adicionado', '✓'], ['warning', 'Sem stock', 'camera-warning-triangle'], ['info', 'Código não encontrado', '?']]) {
+assert.equal(context.scannerResultIcon('warning'), '!');
+assert.equal(context.scannerResultIcon('info'), '?');
+for (const [type, title, glyph] of [['success', 'Adicionado', 'M-25 4 -8 25 28-32'], ['warning', 'Sem stock', '!'], ['info', 'Código não encontrado', '?']]) {
   context.updateScannerStatus('71487 <teste>', title, type);
   assert.equal(status.className, `camera-notice ${type}`);
   assert(status.innerHTML.includes(glyph));

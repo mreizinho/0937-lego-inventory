@@ -161,7 +161,7 @@ html,body{height:100%;overflow:hidden}
 .camera-controls button:active{transform:scale(.96)}
 .camera-scan-success{position:absolute;inset:0;z-index:4;width:100%;height:100%;padding:0;border:0;background:rgba(0,0,0,.18);display:grid;place-items:center;cursor:pointer}
 .camera-scan-success[hidden]{display:none}
-.camera-scan-success>span{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#0ebc5f;border:5px solid #0ebc5f;box-shadow:0 8px 28px rgba(0,0,0,.3);font-size:62px;font-weight:800;line-height:1;animation:camera-scan-success-pop 120ms ease-out}
+.camera-scan-success>span{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#76b56b;border:5px solid #76b56b;box-shadow:0 8px 28px rgba(0,0,0,.3);font-size:62px;font-weight:800;line-height:1;animation:camera-scan-success-pop 120ms ease-out}
 @keyframes camera-scan-success-pop{from{transform:scale(.7)}to{transform:scale(1)}}
 .camera-scanner-panel>p{min-height:66px;margin:0;padding:12px 18px;display:grid;place-items:center;background:#202122;color:#e1e2e3;text-align:center;font-size:13px}
 @media(max-width:850px){.camera-scanner{place-items:stretch}.camera-scanner-panel{width:100%;height:100dvh}.camera-scanner-panel>header{padding-top:env(safe-area-inset-top);height:calc(58px + env(safe-area-inset-top));flex-basis:calc(58px + env(safe-area-inset-top))}.camera-scanner-panel>p{padding-bottom:max(12px,env(safe-area-inset-bottom))}.camera-guide{height:128px}}
@@ -488,8 +488,8 @@ html,body{height:100%;overflow:hidden}
 
 
 /* Batch scanner stock warning. */
-.camera-scan-warning>span{border-color:#e32636;background:#fff}
-.camera-scan-warning:not(.camera-scan-question)>span{color:#e32636;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;font-weight:500}
+.camera-scan-warning>span{border-color:#c83d39;background:#fff}
+.camera-scan-warning:not(.camera-scan-question)>span{color:#c83d39;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;font-weight:500}
 
 
 /* Align the Comunidade 0937 logo with the forum header. */
@@ -598,19 +598,16 @@ html,body{height:100%;overflow:hidden}
 .consultation-floating-filters{overflow:visible;max-height:none}
 
 
-/* Unknown EAN uses a blue question badge; stock warnings remain yellow. */
-.camera-scan-question>span{color:#0b75ae;border-color:#0b75ae;background:#fff;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;font-weight:500}
+/* Unknown EAN uses a blue question badge; stock warnings use a red exclamation. */
+.camera-scan-question>span{color:#5472aa;border-color:#5472aa;background:#fff;font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif;font-weight:500}
 
 /* Floating scanner feedback, above the system navigation safe area. */
-.camera-notice{--notice-color:#0b75ae;position:absolute;z-index:6;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:min(420px,calc(100% - 40px));display:flex;align-items:center;gap:14px;padding:14px 18px;border-left:5px solid var(--notice-color);border-radius:14px;background:#161819;color:#fff;box-shadow:0 6px 20px #0005;pointer-events:none}
-.camera-notice.success{--notice-color:#0ebc5f}.camera-notice.warning{--notice-color:#e3483d}
+.camera-notice{--notice-color:#5472aa;position:absolute;z-index:6;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);width:min(420px,calc(100% - 40px));display:flex;align-items:center;gap:14px;padding:14px 18px;border-left:5px solid var(--notice-color);border-radius:14px;background:#161819;color:#fff;box-shadow:0 6px 20px #0005;pointer-events:none}
+.camera-notice.success{--notice-color:#76b56b}.camera-notice.warning{--notice-color:#c83d39}
 .camera-notice-copy{min-width:0;display:flex;flex-direction:column;gap:4px;text-align:left}
 .camera-notice-copy strong{font-size:16px;line-height:1.2;font-weight:700}
 .camera-notice-copy>span{font-size:13px;line-height:1.4;color:#e0e2e3;overflow-wrap:anywhere}
 .camera-notice .camera-notice-icon{position:static;inset:auto;flex:0 0 36px;width:36px;height:36px;background:transparent;pointer-events:none}
 .camera-notice-icon>span{width:36px;height:36px;border-width:2px;box-shadow:none;font-size:24px;animation:none}
-.camera-notice-icon>span svg{width:24px;height:24px}
-.camera-scan-warning>span svg{display:block;width:62px;height:62px}
-.camera-warning-triangle{stroke:#e32636}
-.camera-warning-mark{stroke:#111;fill:#111}
-.camera-notice-icon.camera-scan-warning>span svg{width:24px;height:24px}
+.camera-scan-success>span svg{display:block;width:72px;height:72px}
+.camera-notice-icon>span svg{width:27px;height:27px}
